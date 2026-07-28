@@ -20,7 +20,7 @@ import {
   rejectUser,
 } from './services/firebaseService';
 import type { ProjectWorkspace, AssetPlanItem, AppNotification, AppUser } from './types';
-import { MAIN_CS_POSITIONS } from './types';
+import { IS_ADMIN_ROLE } from './types';
 import { SummaryCards } from './components/SummaryCards';
 import { FlyerTable } from './components/FlyerTable';
 import { FlyerFormModal } from './components/FlyerFormModal';
@@ -122,8 +122,8 @@ const Dashboard: React.FC = () => {
   const { appUser, isAdmin } = useAuth();
   const navigate = useNavigate();
 
-  const isMainCommittee = appUser ? MAIN_CS_POSITIONS.includes(appUser.position) : false;
-  const isWebmaster = appUser ? (appUser.position === 'Webmaster' || appUser.position === 'Assistant Webmaster') : false;
+  const isMainCommittee = appUser ? IS_ADMIN_ROLE(appUser.position) : false;
+  const isWebmaster = appUser ? (appUser.position?.toLowerCase().includes('webmaster') || false) : false;
 
   // Core project / asset state
   const [projects, setProjects] = useState<ProjectWorkspace[]>([]);

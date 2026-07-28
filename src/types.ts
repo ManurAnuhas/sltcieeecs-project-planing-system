@@ -25,12 +25,18 @@ export const MAIN_CS_POSITIONS: UserRole[] = [
 ];
 
 // All 8 main positions can access Admin Panel
-export const IS_ADMIN_ROLE = (role: UserRole): boolean =>
-  MAIN_CS_POSITIONS.includes(role);
+export const IS_ADMIN_ROLE = (role?: string): boolean => {
+  if (!role) return false;
+  const norm = role.toLowerCase().replace(/[^a-z0-9]/g, '');
+  return MAIN_CS_POSITIONS.some(p => p.toLowerCase().replace(/[^a-z0-9]/g, '') === norm);
+};
 
 // These roles require Admin approval after signup
-export const NEEDS_APPROVAL = (role: UserRole): boolean =>
-  role === 'Project-Chairperson' || role === 'Project-Co-Chairperson';
+export const NEEDS_APPROVAL = (role?: string): boolean => {
+  if (!role) return false;
+  const norm = role.toLowerCase().replace(/[^a-z0-9]/g, '');
+  return norm === 'projectchairperson' || norm === 'projectcochairperson';
+};
 
 export interface AppUser {
   uid: string;
