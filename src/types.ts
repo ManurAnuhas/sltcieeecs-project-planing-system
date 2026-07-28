@@ -7,7 +7,11 @@ export type UserRole =
   | 'Assistant Treasurer'
   | 'Webmaster'
   | 'Assistant Webmaster'
-  | 'Other'; // For additional invited members
+  | 'Project-Chairperson'    // Needs admin approval
+  | 'Project-Co-Chairperson' // Needs admin approval
+  | 'Other';
+
+export type UserStatus = 'pending' | 'approved' | 'rejected';
 
 export const MAIN_CS_POSITIONS: UserRole[] = [
   'Chairman',
@@ -20,14 +24,20 @@ export const MAIN_CS_POSITIONS: UserRole[] = [
   'Assistant Webmaster',
 ];
 
+// All 8 main positions can access Admin Panel
 export const IS_ADMIN_ROLE = (role: UserRole): boolean =>
-  role === 'Webmaster' || role === 'Assistant Webmaster';
+  MAIN_CS_POSITIONS.includes(role);
+
+// These roles require Admin approval after signup
+export const NEEDS_APPROVAL = (role: UserRole): boolean =>
+  role === 'Project-Chairperson' || role === 'Project-Co-Chairperson';
 
 export interface AppUser {
   uid: string;
   name: string;
   email: string;
   position: UserRole;
+  status: UserStatus; // 'approved' for main 8, 'pending' for project roles
   photoURL?: string;
   createdAt: string;
 }

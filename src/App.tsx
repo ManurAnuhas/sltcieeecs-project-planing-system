@@ -21,29 +21,55 @@ import { SummaryModal } from './components/SummaryModal';
 import { ProjectSelector } from './components/ProjectSelector';
 import { LogOut, Shield, User as UserIcon } from 'lucide-react';
 
-// Protected Route Wrapper
+// Protected Route Wrapper — also handles pending approval screen
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { firebaseUser, loading } = useAuth();
+  const { firebaseUser, appUser, loading, isPending } = useAuth();
 
   if (loading) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center' }}>
           <img src="/cs-icon.png" alt="IEEE CS" style={{ height: '48px', margin: '0 auto 16px', display: 'block' }} />
-          <p style={{ color: 'var(--text-muted)' }}>Loading authentication...</p>
+          <p style={{ color: 'var(--text-muted)' }}>Loading...</p>
         </div>
       </div>
     );
   }
 
-  if (!firebaseUser) {
-    return <Navigate to="/login" replace />;
+  if (!firebaseUser) return <Navigate to="/login" replace />;
+
+  // User registered but waiting for admin approval
+  if (isPending) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+        <div style={{ textAlign: 'center', maxWidth: '480px' }}>
+          <img src="/cs-logo-full.png" alt="IEEE CS" style={{ height: '64px', margin: '0 auto 24px', display: 'block', filter: 'brightness(0) invert(1)' }} />
+          <div className="glass-panel" style={{ padding: '36px 28px' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '16px' }}>⏳</div>
+            <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '10px' }}>Awaiting Approval</h2>
+            <p style={{ color: 'var(--text-muted)', lineHeight: '1.6', marginBottom: '20px' }}>
+              Your account has been created successfully as <strong style={{ color: '#fbbf24' }}>{appUser?.position}</strong>.
+            </p>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', lineHeight: '1.6', marginBottom: '24px' }}>
+              A <strong>main committee member</strong> needs to approve your account before you can access the system. 
+              Please wait or contact your Chairperson / Webmaster.
+            </p>
+            <div style={{ padding: '12px 16px', background: 'rgba(251,191,36,0.08)', borderRadius: '10px', border: '1px solid rgba(251,191,36,0.2)', fontSize: '0.85rem', color: '#fbbf24', marginBottom: '20px' }}>
+              📧 <strong>{appUser?.email}</strong>
+            </div>
+            <button className="btn btn-outline" onClick={logoutUser} style={{ color: '#f87171' }}>
+              <LogOut size={16} /> Sign Out
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return <>{children}</>;
 };
 
-// Admin-only Route (Webmaster / Assistant Webmaster only)
+// Admin-only Route — all 8 main committee positions
 const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { firebaseUser, appUser, loading, isAdmin } = useAuth();
 
@@ -52,7 +78,7 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center' }}>
           <img src="/cs-icon.png" alt="IEEE CS" style={{ height: '48px', margin: '0 auto 16px', display: 'block' }} />
-          <p style={{ color: 'var(--text-muted)' }}>Loading authentication...</p>
+          <p style={{ color: 'var(--text-muted)' }}>Loading...</p>
         </div>
       </div>
     );
@@ -67,7 +93,7 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           <img src="/cs-icon.png" alt="IEEE CS" style={{ height: '56px', margin: '0 auto 20px', display: 'block' }} />
           <h2 style={{ fontSize: '1.4rem', color: '#f87171', marginBottom: '8px' }}>Access Denied</h2>
           <p style={{ color: 'var(--text-muted)', marginBottom: '20px', maxWidth: '400px' }}>
-            The Admin Panel is restricted to <strong>Webmaster</strong> and <strong>Assistant Webmaster</strong> only.
+            The Admin Panel is only for the <strong>8 Main Committee Positions</strong> of SLTC IEEE CS.
           </p>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '20px' }}>
             Your position: <strong style={{ color: '#fbbf24' }}>{appUser?.position || 'Unknown'}</strong>

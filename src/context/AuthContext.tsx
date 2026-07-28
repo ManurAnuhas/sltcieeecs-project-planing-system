@@ -11,6 +11,7 @@ interface AuthContextType {
   appUser: AppUser | null;
   loading: boolean;
   isAdmin: boolean;
+  isPending: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -18,6 +19,7 @@ const AuthContext = createContext<AuthContextType>({
   appUser: null,
   loading: true,
   isAdmin: false,
+  isPending: false,
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -46,9 +48,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const isAdmin = appUser ? IS_ADMIN_ROLE(appUser.position) : false;
+  const isPending = appUser ? appUser.status === 'pending' : false;
 
   return (
-    <AuthContext.Provider value={{ firebaseUser, appUser, loading, isAdmin }}>
+    <AuthContext.Provider value={{ firebaseUser, appUser, loading, isAdmin, isPending }}>
       {children}
     </AuthContext.Provider>
   );

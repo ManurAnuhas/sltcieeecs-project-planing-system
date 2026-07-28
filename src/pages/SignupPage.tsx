@@ -16,7 +16,12 @@ export const SignupPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const ALL_POSITIONS: UserRole[] = [...MAIN_CS_POSITIONS, 'Other'];
+  const ALL_POSITIONS: UserRole[] = [
+    ...MAIN_CS_POSITIONS,
+    'Project-Chairperson',
+    'Project-Co-Chairperson',
+    'Other',
+  ];
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,7 +130,12 @@ export const SignupPage: React.FC = () => {
               </select>
               {MAIN_CS_POSITIONS.includes(position) && (
                 <p style={{ fontSize: '0.75rem', color: '#34d399', marginTop: '4px' }}>
-                  ✓ Main committee position — you will have admin-level access
+                  ✓ Main committee position — you will have Admin Panel access
+                </p>
+              )}
+              {(position === 'Project-Chairperson' || position === 'Project-Co-Chairperson') && (
+                <p style={{ fontSize: '0.75rem', color: '#fbbf24', marginTop: '4px' }}>
+                  ⏳ This role requires approval from a main committee member before you can access the system.
                 </p>
               )}
             </div>

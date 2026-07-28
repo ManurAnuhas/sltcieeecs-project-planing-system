@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   getDocs,
@@ -19,6 +20,7 @@ import {
 } from 'firebase/auth';
 import { auth, db } from '../firebase';
 import type { AppUser, ProjectWorkspace, AssetPlanItem, UserRole } from '../types';
+import { NEEDS_APPROVAL } from '../types';
 
 // ────────────────────────────────────────────
 // AUTH SERVICES
@@ -40,23 +42,18 @@ export const signUpUser = async (
   const cred = await createUserWithEmailAndPassword(auth, email, password);
   await updateProfile(cred.user, { displayName: name });
 
+  // Main 8 committee positions are auto-approved; project roles need admin approval
+  const status = NEEDS_APPROVAL(position) ? 'pending' : 'approved';
+
   const userData: Omit<AppUser, 'uid'> = {
     name,
     email,
     position,
+    status,
     createdAt: new Date().toISOString(),
   };
 
-  await doc(db, 'users', cred.user.uid);
-  const userRef = doc(db, 'users', cred.user.uid);
-  await updateDoc(userRef, userData).catch(() =>
-    addDoc(collection(db, 'users'), { uid: cred.user.uid, ...userData })
-  );
-
-  // Use setDoc instead
-  const { setDoc } = await import('firebase/firestore');
   await setDoc(doc(db, 'users', cred.user.uid), userData);
-
   return { uid: cred.user.uid, ...userData };
 };
 
@@ -77,6 +74,20 @@ export const getUser = async (uid: string): Promise<AppUser | null> => {
 export const getAllUsers = async (): Promise<AppUser[]> => {
   const snap = await getDocs(collection(db, 'users'));
   return snap.docs.map(d => ({ uid: d.id, ...d.data() } as AppUser));
+};
+
+export const getPendingUsers = async (): Promise<AppUser[]> => {
+  const q = query(collection(db, 'users'), where('status', '==', 'pending'));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ uid: d.id, ...d.data() } as AppUser));
+};
+
+export const approveUser = async (uid: string): Promise<void> => {
+  await updateDoc(doc(db, 'users', uid), { status: 'approved' });
+};
+
+export const rejectUser = async (uid: string): Promise<void> => {
+  await updateDoc(doc(db, 'users', uid), { status: 'rejected' });
 };
 
 // ────────────────────────────────────────────

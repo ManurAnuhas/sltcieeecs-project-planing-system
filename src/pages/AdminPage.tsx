@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { logoutUser, getAllUsers, createProject, deleteProject } from '../services/firebaseService';
+import { logoutUser, getAllUsers, createProject, deleteProject, getPendingUsers, approveUser, rejectUser } from '../services/firebaseService';
 import type { AppUser, ProjectWorkspace } from '../types';
 import { MAIN_CS_POSITIONS } from '../types';
-import { Shield, Plus, Users, FolderOpen, LogOut, Trash2, X, Check, Copy } from 'lucide-react';
+import { Shield, Plus, Users, FolderOpen, LogOut, Trash2, X, Check, Copy, Clock } from 'lucide-react';
 import { subscribeUserProjects } from '../services/firebaseService';
 import confetti from 'canvas-confetti';
 
@@ -11,11 +11,11 @@ export const AdminPage: React.FC = () => {
   const { appUser, isAdmin } = useAuth();
   const [projects, setProjects] = useState<ProjectWorkspace[]>([]);
   const [allUsers, setAllUsers] = useState<AppUser[]>([]);
-  const [activeTab, setActiveTab] = useState<'projects' | 'users'>('projects');
+  const [pendingUsers, setPendingUsers] = useState<AppUser[]>([]);
+  const [activeTab, setActiveTab] = useState<'projects' | 'users' | 'pending'>('projects');
   const [showNewProject, setShowNewProject] = useState(false);
   const [copiedShare, setCopiedShare] = useState<string | null>(null);
 
-  // New project form state
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -32,7 +32,21 @@ export const AdminPage: React.FC = () => {
 
   useEffect(() => {
     getAllUsers().then(setAllUsers);
+    getPendingUsers().then(setPendingUsers);
   }, []);
+
+  const handleApprove = async (uid: string) => {
+    await approveUser(uid);
+    setPendingUsers(prev => prev.filter(u => u.uid !== uid));
+    getAllUsers().then(setAllUsers);
+  };
+
+  const handleReject = async (uid: string) => {
+    if (confirm('Reject and remove this user account?')) {
+      await rejectUser(uid);
+      setPendingUsers(prev => prev.filter(u => u.uid !== uid));
+    }
+  };
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,6 +139,21 @@ export const AdminPage: React.FC = () => {
           onClick={() => setActiveTab('users')}
         >
           <Users size={16} /> Members ({allUsers.length})
+        </button>
+        <button
+          className={`btn ${activeTab === 'pending' ? 'btn-primary' : 'btn-outline'}`}
+          onClick={() => setActiveTab('pending')}
+          style={{ position: 'relative' }}
+        >
+          <Clock size={16} /> Pending Approval ({pendingUsers.length})
+          {pendingUsers.length > 0 && (
+            <span style={{
+              position: 'absolute', top: '-6px', right: '-6px',
+              background: '#f87171', color: '#fff', borderRadius: '50%',
+              width: '18px', height: '18px', fontSize: '0.7rem',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700
+            }}>{pendingUsers.length}</span>
+          )}
         </button>
       </div>
 
@@ -313,6 +342,50 @@ export const AdminPage: React.FC = () => {
                 ))}
               </div>
             </div>
+          )}
+        </div>
+      )}
+
+      {/* ─── PENDING APPROVALS TAB ─── */}
+      {activeTab === 'pending' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {pendingUsers.length === 0 ? (
+            <div className="glass-panel" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>✅</div>
+              <div style={{ fontWeight: 600 }}>No pending approvals</div>
+              <div style={{ fontSize: '0.85rem', marginTop: '8px' }}>All registered users have been reviewed.</div>
+            </div>
+          ) : (
+            pendingUsers.map(u => (
+              <div key={u.uid} className="glass-panel" style={{ padding: '18px 22px', borderColor: 'rgba(251,191,36,0.25)', background: 'rgba(251,191,36,0.04)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '1rem' }}>{u.name}</div>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '3px' }}>{u.email}</div>
+                    <div style={{ marginTop: '8px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <span className="badge badge-scheduled">{u.position}</span>
+                      <span style={{ fontSize: '0.78rem', color: '#fbbf24' }}>⏳ Awaiting approval</span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                      className="btn btn-primary"
+                      style={{ padding: '8px 18px', background: 'rgba(16,185,129,0.2)', borderColor: 'rgba(16,185,129,0.4)', color: '#34d399' }}
+                      onClick={() => handleApprove(u.uid)}
+                    >
+                      <Check size={15} /> Approve
+                    </button>
+                    <button
+                      className="btn btn-outline"
+                      style={{ padding: '8px 14px', color: '#f87171', borderColor: 'rgba(248,113,113,0.3)' }}
+                      onClick={() => handleReject(u.uid)}
+                    >
+                      <X size={15} /> Reject
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
           )}
         </div>
       )}
