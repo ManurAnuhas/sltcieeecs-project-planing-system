@@ -17,6 +17,8 @@ import {
   signInWithEmailAndPassword,
   signOut,
   updateProfile,
+  GoogleAuthProvider,
+  signInWithPopup,
 } from 'firebase/auth';
 import { auth, db } from '../firebase';
 import type { AppUser, ProjectWorkspace, AssetPlanItem, UserRole } from '../types';
@@ -59,6 +61,44 @@ export const signUpUser = async (
 
 export const loginUser = (email: string, password: string) =>
   signInWithEmailAndPassword(auth, email, password);
+
+export const signInWithGoogle = async (): Promise<{ user: any; isNew: boolean; existingProfile?: AppUser }> => {
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  const result = await signInWithPopup(auth, provider);
+  const email = result.user.email || '';
+
+  if (!isAllowedEmail(email)) {
+    await signOut(auth);
+    throw new Error('access-denied-domain');
+  }
+
+  // Check if profile document already exists in Firestore
+  const snap = await getDoc(doc(db, 'users', result.user.uid));
+  if (snap.exists()) {
+    return { user: result.user, isNew: false, existingProfile: { uid: result.user.uid, ...snap.data() } as AppUser };
+  }
+
+  return { user: result.user, isNew: true };
+};
+
+export const createGoogleUserProfile = async (
+  uid: string,
+  email: string,
+  name: string,
+  position: UserRole
+): Promise<AppUser> => {
+  const status = NEEDS_APPROVAL(position) ? 'pending' : 'approved';
+  const userData: Omit<AppUser, 'uid'> = {
+    name,
+    email,
+    position,
+    status,
+    createdAt: new Date().toISOString(),
+  };
+  await setDoc(doc(db, 'users', uid), userData);
+  return { uid, ...userData };
+};
 
 export const logoutUser = () => signOut(auth);
 
