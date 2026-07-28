@@ -38,8 +38,22 @@ export interface AppUser {
   email: string;
   position: UserRole;
   status: UserStatus; // 'approved' for main 8, 'pending' for project roles
+  requestedProjectName?: string;
   photoURL?: string;
   createdAt: string;
+}
+
+export type NotificationType = 'project_created' | 'user_approved' | 'user_rejected' | 'asset_updated' | 'info';
+
+export interface AppNotification {
+  id: string;
+  title: string;
+  message: string;
+  type: NotificationType;
+  createdAt: string;
+  readBy: string[];      // uids who marked it read
+  projectId?: string;
+  actorName?: string;
 }
 
 export type ProjectRole = 'project-chair' | 'co-chair' | 'pv-lead' | 'viewer';

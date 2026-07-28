@@ -10,6 +10,8 @@ import {
   query,
   where,
   onSnapshot,
+  orderBy,
+  arrayUnion,
 } from 'firebase/firestore';
 import type { Unsubscribe } from 'firebase/firestore';
 import {
@@ -19,9 +21,10 @@ import {
   updateProfile,
   GoogleAuthProvider,
   signInWithPopup,
+  sendPasswordResetEmail,
 } from 'firebase/auth';
 import { auth, db } from '../firebase';
-import type { AppUser, ProjectWorkspace, AssetPlanItem, UserRole } from '../types';
+import type { AppUser, AppNotification, ProjectWorkspace, AssetPlanItem, UserRole } from '../types';
 import { NEEDS_APPROVAL } from '../types';
 
 // ────────────────────────────────────────────
@@ -39,7 +42,8 @@ export const signUpUser = async (
   email: string,
   password: string,
   name: string,
-  position: UserRole
+  position: UserRole,
+  requestedProjectName?: string
 ): Promise<AppUser> => {
   const cred = await createUserWithEmailAndPassword(auth, email, password);
   await updateProfile(cred.user, { displayName: name });
@@ -52,6 +56,7 @@ export const signUpUser = async (
     email,
     position,
     status,
+    ...(requestedProjectName ? { requestedProjectName } : {}),
     createdAt: new Date().toISOString(),
   };
 
@@ -86,7 +91,8 @@ export const createGoogleUserProfile = async (
   uid: string,
   email: string,
   name: string,
-  position: UserRole
+  position: UserRole,
+  requestedProjectName?: string
 ): Promise<AppUser> => {
   const status = NEEDS_APPROVAL(position) ? 'pending' : 'approved';
   const userData: Omit<AppUser, 'uid'> = {
@@ -94,6 +100,7 @@ export const createGoogleUserProfile = async (
     email,
     position,
     status,
+    ...(requestedProjectName ? { requestedProjectName } : {}),
     createdAt: new Date().toISOString(),
   };
   await setDoc(doc(db, 'users', uid), userData);
@@ -122,13 +129,65 @@ export const getPendingUsers = async (): Promise<AppUser[]> => {
   return snap.docs.map(d => ({ uid: d.id, ...d.data() } as AppUser));
 };
 
-export const approveUser = async (uid: string): Promise<void> => {
+export const approveUser = async (uid: string, actorName: string, userName: string): Promise<void> => {
   await updateDoc(doc(db, 'users', uid), { status: 'approved' });
+  await createNotification({
+    title: '✅ User Approved',
+    message: `${userName} has been approved by ${actorName} and can now access the system.`,
+    type: 'user_approved',
+    actorName,
+  });
 };
 
-export const rejectUser = async (uid: string): Promise<void> => {
+export const rejectUser = async (uid: string, actorName: string, userName: string): Promise<void> => {
   await updateDoc(doc(db, 'users', uid), { status: 'rejected' });
+  await createNotification({
+    title: '❌ User Rejected',
+    message: `${userName}'s access request was rejected by ${actorName}.`,
+    type: 'user_rejected',
+    actorName,
+  });
 };
+
+export const updateUserProfile = async (uid: string, updates: Partial<AppUser>): Promise<void> => {
+  await updateDoc(doc(db, 'users', uid), updates);
+};
+
+export const deleteUserAccount = async (uid: string): Promise<void> => {
+  await deleteDoc(doc(db, 'users', uid));
+};
+
+export const sendAdminPasswordReset = async (email: string): Promise<void> => {
+  await sendPasswordResetEmail(auth, email);
+};
+
+// ────────────────────────────────────────────
+// NOTIFICATION SERVICES
+// ────────────────────────────────────────────
+
+export const createNotification = async (
+  data: Omit<AppNotification, 'id' | 'createdAt' | 'readBy'>
+): Promise<void> => {
+  await addDoc(collection(db, 'notifications'), {
+    ...data,
+    createdAt: new Date().toISOString(),
+    readBy: [],
+  });
+};
+
+export const subscribeNotifications = (
+  callback: (notifications: AppNotification[]) => void
+): Unsubscribe => {
+  return onSnapshot(
+    query(collection(db, 'notifications'), orderBy('createdAt', 'desc')),
+    snap => {
+      callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as AppNotification)));
+    }
+  );
+};
+
+export const markNotificationRead = (notificationId: string, uid: string) =>
+  updateDoc(doc(db, 'notifications', notificationId), { readBy: arrayUnion(uid) });
 
 // ────────────────────────────────────────────
 // PROJECT SERVICES
@@ -145,6 +204,14 @@ export const createProject = async (
     ...data,
     shareCode,
     createdAt: new Date().toISOString(),
+  });
+  // Fire notification for all committee members
+  await createNotification({
+    title: '📁 New Project Created',
+    message: `"${data.name}" has been created by ${data.chairpersonName || 'Admin'}.`,
+    type: 'project_created',
+    projectId: docRef.id,
+    actorName: data.chairpersonName,
   });
   return docRef.id;
 };

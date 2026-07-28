@@ -1,10 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { logoutUser, getAllUsers, createProject, deleteProject, getPendingUsers, approveUser, rejectUser } from '../services/firebaseService';
-import type { AppUser, ProjectWorkspace } from '../types';
+import {
+  logoutUser,
+  getAllUsers,
+  createProject,
+  deleteProject,
+  getPendingUsers,
+  approveUser,
+  rejectUser,
+  updateUserProfile,
+  deleteUserAccount,
+  sendAdminPasswordReset,
+  subscribeUserProjects,
+} from '../services/firebaseService';
+import type { AppUser, ProjectWorkspace, UserRole } from '../types';
 import { MAIN_CS_POSITIONS } from '../types';
-import { Shield, Plus, Users, FolderOpen, LogOut, Trash2, X, Check, Copy, Clock } from 'lucide-react';
-import { subscribeUserProjects } from '../services/firebaseService';
+import { Shield, Plus, Users, FolderOpen, LogOut, Trash2, X, Check, Copy, Clock, Edit, Key } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 export const AdminPage: React.FC = () => {
@@ -15,6 +26,15 @@ export const AdminPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'projects' | 'users' | 'pending'>('projects');
   const [showNewProject, setShowNewProject] = useState(false);
   const [copiedShare, setCopiedShare] = useState<string | null>(null);
+
+  // Edit user state
+  const [editingUser, setEditingUser] = useState<AppUser | null>(null);
+  const [editForm, setEditForm] = useState<{ name: string; position: UserRole; status: 'pending' | 'approved' | 'rejected' }>({
+    name: '',
+    position: 'Other',
+    status: 'approved',
+  });
+  const [resetSent, setResetSent] = useState(false);
 
   const [form, setForm] = useState({
     name: '',
@@ -35,16 +55,55 @@ export const AdminPage: React.FC = () => {
     getPendingUsers().then(setPendingUsers);
   }, []);
 
-  const handleApprove = async (uid: string) => {
-    await approveUser(uid);
+  const handleApprove = async (uid: string, userName: string) => {
+    await approveUser(uid, appUser?.name || 'Admin', userName);
     setPendingUsers(prev => prev.filter(u => u.uid !== uid));
     getAllUsers().then(setAllUsers);
   };
 
-  const handleReject = async (uid: string) => {
-    if (confirm('Reject and remove this user account?')) {
-      await rejectUser(uid);
+  const handleReject = async (uid: string, userName: string) => {
+    if (confirm('Reject and remove this user access request?')) {
+      await rejectUser(uid, appUser?.name || 'Admin', userName);
       setPendingUsers(prev => prev.filter(u => u.uid !== uid));
+    }
+  };
+
+  const handleOpenEditUser = (user: AppUser) => {
+    setEditingUser(user);
+    setEditForm({
+      name: user.name,
+      position: user.position,
+      status: user.status as any,
+    });
+    setResetSent(false);
+  };
+
+  const handleSaveEditUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    await updateUserProfile(editingUser.uid, {
+      name: editForm.name,
+      position: editForm.position,
+      status: editForm.status,
+    });
+    setEditingUser(null);
+    getAllUsers().then(setAllUsers);
+  };
+
+  const handleDeleteUser = async (user: AppUser) => {
+    if (confirm(`Are you sure you want to remove ${user.name} (${user.email})? This action cannot be undone.`)) {
+      await deleteUserAccount(user.uid);
+      setAllUsers(prev => prev.filter(u => u.uid !== user.uid));
+      setPendingUsers(prev => prev.filter(u => u.uid !== user.uid));
+    }
+  };
+
+  const handleSendPasswordReset = async (email: string) => {
+    try {
+      await sendAdminPasswordReset(email);
+      setResetSent(true);
+    } catch (err: any) {
+      alert('Error sending password reset: ' + err.message);
     }
   };
 
@@ -92,7 +151,6 @@ export const AdminPage: React.FC = () => {
   };
 
   const adminUsers = allUsers.filter(u => MAIN_CS_POSITIONS.includes(u.position as any));
-  const otherUsers = allUsers.filter(u => !MAIN_CS_POSITIONS.includes(u.position as any));
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '24px 16px' }}>
@@ -294,55 +352,207 @@ export const AdminPage: React.FC = () => {
               <img src="/cs-icon.png" alt="" style={{ height: '24px' }} />
               Main Committee Positions ({adminUsers.length}/8 registered)
             </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '12px' }}>
               {MAIN_CS_POSITIONS.map(pos => {
                 const user = adminUsers.find(u => u.position === pos);
                 return (
                   <div key={pos} style={{
-                    padding: '12px 16px',
+                    padding: '14px 16px',
                     borderRadius: '10px',
                     border: `1px solid ${user ? 'rgba(16,185,129,0.3)' : 'rgba(255,255,255,0.08)'}`,
                     background: user ? 'rgba(16,185,129,0.06)' : 'rgba(255,255,255,0.02)',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
+                    gap: '10px',
                   }}>
-                    <div>
+                    <div style={{ minWidth: 0 }}>
                       <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{pos}</div>
                       {user ? (
-                        <div style={{ fontSize: '0.78rem', color: '#34d399', marginTop: '2px' }}>✓ {user.name}</div>
+                        <div style={{ fontSize: '0.78rem', color: '#34d399', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>✓ {user.name}</div>
                       ) : (
                         <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>Not registered yet</div>
                       )}
                     </div>
-                    <span className={`badge ${user ? 'badge-published' : 'badge-draft'}`}>
-                      {user ? 'Active' : 'Vacant'}
-                    </span>
+                    {user ? (
+                      <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                        <button className="btn btn-outline" style={{ padding: '5px 9px', fontSize: '0.75rem' }} onClick={() => handleOpenEditUser(user)} title="Edit Details & Access">
+                          <Edit size={13} /> Edit
+                        </button>
+                        <button className="btn btn-outline" style={{ padding: '5px 7px', color: '#f87171', borderColor: 'rgba(248,113,113,0.3)' }} onClick={() => handleDeleteUser(user)} title="Remove Member">
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="badge badge-draft">Vacant</span>
+                    )}
                   </div>
                 );
               })}
             </div>
           </div>
 
-          {/* Other Members */}
-          {otherUsers.length > 0 && (
-            <div className="glass-panel" style={{ padding: '20px' }}>
-              <h3 style={{ marginBottom: '16px', fontWeight: 700, fontSize: '1rem' }}>
-                Other Committee Members ({otherUsers.length})
-              </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {otherUsers.map(u => (
-                  <div key={u.uid} style={{ padding: '10px 16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <div style={{ fontWeight: 600 }}>{u.name}</div>
-                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{u.email}</div>
+          {/* All Registered Users */}
+          <div className="glass-panel" style={{ padding: '20px' }}>
+            <h3 style={{ marginBottom: '16px', fontWeight: 700, fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Users size={18} style={{ color: 'var(--accent-cyan)' }} />
+              All Registered Members ({allUsers.length})
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {allUsers.map(u => (
+                <div key={u.uid} style={{ padding: '12px 16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                  <div>
+                    <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {u.name}
+                      <span className={`badge ${u.status === 'approved' ? 'badge-published' : 'badge-scheduled'}`} style={{ fontSize: '0.68rem' }}>
+                        {u.status}
+                      </span>
                     </div>
-                    <span className="badge badge-draft">{u.position}</span>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{u.email} • <strong style={{ color: 'var(--accent-cyan)' }}>{u.position}</strong></div>
                   </div>
-                ))}
-              </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className="btn btn-outline" style={{ padding: '6px 12px', fontSize: '0.8rem', gap: '5px' }} onClick={() => handleOpenEditUser(u)}>
+                      <Edit size={14} /> Edit / Access
+                    </button>
+                    <button className="btn btn-outline" style={{ padding: '6px 10px', color: '#f87171', borderColor: 'rgba(248,113,113,0.3)', fontSize: '0.8rem' }} onClick={() => handleDeleteUser(u)}>
+                      <Trash2 size={14} /> Remove
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── PENDING APPROVALS TAB ─── */}
+      {activeTab === 'pending' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {pendingUsers.length === 0 ? (
+            <div className="glass-panel" style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>✅</div>
+              <div style={{ fontWeight: 600 }}>No pending approvals</div>
+              <div style={{ fontSize: '0.85rem', marginTop: '8px' }}>All registered users have been reviewed.</div>
+            </div>
+          ) : (
+            pendingUsers.map(u => (
+              <div key={u.uid} className="glass-panel" style={{ padding: '18px 22px', borderColor: 'rgba(251,191,36,0.25)', background: 'rgba(251,191,36,0.04)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '1rem' }}>{u.name}</div>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '3px' }}>{u.email}</div>
+                    <div style={{ marginTop: '8px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <span className="badge badge-scheduled">{u.position}</span>
+                      {u.requestedProjectName && (
+                        <span style={{ fontSize: '0.78rem', background: 'rgba(251,191,36,0.15)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.3)', borderRadius: '6px', padding: '2px 8px', fontWeight: 600 }}>
+                          🎯 Project: {u.requestedProjectName}
+                        </span>
+                      )}
+                      <span style={{ fontSize: '0.78rem', color: '#fbbf24' }}>⏳ Awaiting approval</span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                      className="btn btn-primary"
+                      style={{ padding: '8px 18px', background: 'rgba(16,185,129,0.2)', borderColor: 'rgba(16,185,129,0.4)', color: '#34d399' }}
+                      onClick={() => handleApprove(u.uid, u.name)}
+                    >
+                      <Check size={15} /> Approve
+                    </button>
+                    <button
+                      className="btn btn-outline"
+                      style={{ padding: '8px 14px', color: '#f87171', borderColor: 'rgba(248,113,113,0.3)' }}
+                      onClick={() => handleReject(u.uid, u.name)}
+                    >
+                      <X size={15} /> Reject
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
           )}
+        </div>
+      )}
+
+      {/* ─── EDIT USER & ACCESS MODAL ─── */}
+      {editingUser && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+          <div className="glass-panel" style={{ width: '100%', maxWidth: '520px', padding: '28px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ fontWeight: 700, fontSize: '1.15rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Edit size={18} style={{ color: 'var(--accent-cyan)' }} /> Edit Member & Access Control
+              </h3>
+              <button className="btn btn-outline" style={{ padding: '4px 8px' }} onClick={() => setEditingUser(null)}>
+                <X size={15} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditUser} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: '5px' }}>FULL NAME</label>
+                <input value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))} required />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: '5px' }}>EMAIL (READ ONLY)</label>
+                <input value={editingUser.email} disabled style={{ opacity: 0.6, cursor: 'not-allowed' }} />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: '5px' }}>POSITION / ACCESS ROLE</label>
+                <select value={editForm.position} onChange={e => setEditForm(f => ({ ...f, position: e.target.value as UserRole }))}>
+                  <optgroup label="Main Committee Positions (Full System Access)">
+                    {MAIN_CS_POSITIONS.map(pos => (
+                      <option key={pos} value={pos}>{pos}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="General Members & Project Positions">
+                    <option value="Project-Chairperson">Project Chairperson</option>
+                    <option value="Project-Co-Chairperson">Project Co-Chairperson</option>
+                    <option value="Other">General Committee Member / Other</option>
+                  </optgroup>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600, display: 'block', marginBottom: '5px' }}>ACCOUNT STATUS</label>
+                <select value={editForm.status} onChange={e => setEditForm(f => ({ ...f, status: e.target.value as any }))}>
+                  <option value="approved">Approved (Full Access)</option>
+                  <option value="pending">Pending Approval</option>
+                  <option value="rejected">Rejected / Suspended</option>
+                </select>
+              </div>
+
+              {/* Password Reset option */}
+              <div style={{ padding: '14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)' }}>
+                <div style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Key size={15} style={{ color: '#fbbf24' }} /> Reset Password
+                </div>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0 0 10px 0' }}>
+                  Send a password reset email link to {editingUser.email}.
+                </p>
+                {resetSent ? (
+                  <span style={{ fontSize: '0.8rem', color: '#34d399', fontWeight: 600 }}>
+                    ✓ Password reset email sent!
+                  </span>
+                ) : (
+                  <button type="button" className="btn btn-outline" style={{ padding: '6px 12px', fontSize: '0.8rem', gap: '6px' }} onClick={() => handleSendPasswordReset(editingUser.email)}>
+                    <Key size={13} /> Send Reset Link
+                  </button>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'space-between', marginTop: '8px' }}>
+                <button type="button" className="btn btn-outline" style={{ color: '#f87171', borderColor: 'rgba(248,113,113,0.3)', fontSize: '0.85rem' }} onClick={() => handleDeleteUser(editingUser)}>
+                  <Trash2 size={15} /> Delete Account
+                </button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button type="button" className="btn btn-outline" onClick={() => setEditingUser(null)}>Cancel</button>
+                  <button type="submit" className="btn btn-gold">Save Changes</button>
+                </div>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 
@@ -371,14 +581,14 @@ export const AdminPage: React.FC = () => {
                     <button
                       className="btn btn-primary"
                       style={{ padding: '8px 18px', background: 'rgba(16,185,129,0.2)', borderColor: 'rgba(16,185,129,0.4)', color: '#34d399' }}
-                      onClick={() => handleApprove(u.uid)}
+                      onClick={() => handleApprove(u.uid, u.name)}
                     >
                       <Check size={15} /> Approve
                     </button>
                     <button
                       className="btn btn-outline"
                       style={{ padding: '8px 14px', color: '#f87171', borderColor: 'rgba(248,113,113,0.3)' }}
-                      onClick={() => handleReject(u.uid)}
+                      onClick={() => handleReject(u.uid, u.name)}
                     >
                       <X size={15} /> Reject
                     </button>

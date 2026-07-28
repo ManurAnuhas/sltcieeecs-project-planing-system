@@ -11,10 +11,13 @@ export const SignupPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [confirmPwd, setConfirmPwd] = useState('');
   const [position, setPosition] = useState<UserRole>('Chairman');
+  const [requestedProjectName, setRequestedProjectName] = useState('');
   const [showPwd, setShowPwd] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  const isProjectRole = position === 'Project-Chairperson' || position === 'Project-Co-Chairperson';
 
   const ALL_POSITIONS: UserRole[] = [
     ...MAIN_CS_POSITIONS,
@@ -39,10 +42,14 @@ export const SignupPage: React.FC = () => {
       setError('Passwords do not match.');
       return;
     }
+    if (isProjectRole && !requestedProjectName.trim()) {
+      setError('Please specify the project name you are registering for.');
+      return;
+    }
 
     setLoading(true);
     try {
-      await signUpUser(email, password, name, position);
+      await signUpUser(email, password, name, position, isProjectRole ? requestedProjectName.trim() : undefined);
       navigate('/', { replace: true });
     } catch (err: any) {
       const code = err.code || '';
@@ -133,12 +140,31 @@ export const SignupPage: React.FC = () => {
                   ✓ Main committee position — you will have Admin Panel access
                 </p>
               )}
-              {(position === 'Project-Chairperson' || position === 'Project-Co-Chairperson') && (
+              {isProjectRole && (
                 <p style={{ fontSize: '0.75rem', color: '#fbbf24', marginTop: '4px' }}>
-                  ⏳ This role requires approval from a main committee member before you can access the system.
+                  ⏳ This role requires approval from a main committee member before you can access the workspace.
                 </p>
               )}
             </div>
+
+            {isProjectRole && (
+              <div>
+                <label style={{ fontSize: '0.8rem', color: '#fbbf24', display: 'block', marginBottom: '5px', fontWeight: 600 }}>
+                  REGISTERING PROJECT NAME *
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. IEEE CS Tech Talk 2026 / Hackathon"
+                  value={requestedProjectName}
+                  onChange={e => setRequestedProjectName(e.target.value)}
+                  required
+                  style={{ borderColor: 'rgba(251,191,36,0.4)', background: 'rgba(251,191,36,0.05)' }}
+                />
+                <p style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  Enter the exact name of the project you are chairing/co-chairing.
+                </p>
+              </div>
+            )}
 
             <div>
               <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginBottom: '5px', fontWeight: 600 }}>
