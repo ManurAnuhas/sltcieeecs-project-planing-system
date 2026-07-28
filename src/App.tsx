@@ -43,6 +43,44 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
+// Admin-only Route (Webmaster / Assistant Webmaster only)
+const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { firebaseUser, appUser, loading, isAdmin } = useAuth();
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <img src="/cs-icon.png" alt="IEEE CS" style={{ height: '48px', margin: '0 auto 16px', display: 'block' }} />
+          <p style={{ color: 'var(--text-muted)' }}>Loading authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!firebaseUser) return <Navigate to="/login" replace />;
+
+  if (!isAdmin) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px' }}>
+        <div>
+          <img src="/cs-icon.png" alt="IEEE CS" style={{ height: '56px', margin: '0 auto 20px', display: 'block' }} />
+          <h2 style={{ fontSize: '1.4rem', color: '#f87171', marginBottom: '8px' }}>Access Denied</h2>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '20px', maxWidth: '400px' }}>
+            The Admin Panel is restricted to <strong>Webmaster</strong> and <strong>Assistant Webmaster</strong> only.
+          </p>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '20px' }}>
+            Your position: <strong style={{ color: '#fbbf24' }}>{appUser?.position || 'Unknown'}</strong>
+          </p>
+          <a href="/" className="btn btn-primary" style={{ textDecoration: 'none' }}>← Go to Dashboard</a>
+        </div>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+};
+
 // Main Dashboard View
 const Dashboard: React.FC = () => {
   const { appUser, isAdmin } = useAuth();
@@ -247,9 +285,9 @@ export function App() {
           <Route
             path="/admin"
             element={
-              <ProtectedRoute>
+              <AdminRoute>
                 <AdminPage />
-              </ProtectedRoute>
+              </AdminRoute>
             }
           />
           <Route

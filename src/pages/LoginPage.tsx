@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { loginUser } from '../services/firebaseService';
 import { Eye, EyeOff, LogIn } from 'lucide-react';
 
@@ -8,6 +9,7 @@ export const LoginPage: React.FC = () => {
   const [showPwd, setShowPwd] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -15,7 +17,7 @@ export const LoginPage: React.FC = () => {
     setLoading(true);
     try {
       await loginUser(email, password);
-      // AuthContext handles redirect
+      navigate('/', { replace: true });
     } catch (err: any) {
       const code = err.code || '';
       if (code === 'auth/user-not-found' || code === 'auth/wrong-password' || code === 'auth/invalid-credential') {

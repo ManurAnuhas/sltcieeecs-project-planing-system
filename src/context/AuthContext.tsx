@@ -4,6 +4,7 @@ import type { User as FirebaseUser } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import type { AppUser } from '../types';
+import { IS_ADMIN_ROLE } from '../types';
 
 interface AuthContextType {
   firebaseUser: FirebaseUser | null;
@@ -44,8 +45,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => unsub();
   }, []);
 
-  const ADMIN_POSITIONS = ['Chairman', 'Vice-Chairman', 'Secretary', 'Assistant Secretary', 'Treasurer', 'Assistant Treasurer', 'Webmaster', 'Assistant Webmaster'];
-  const isAdmin = appUser ? ADMIN_POSITIONS.includes(appUser.position) : false;
+  const isAdmin = appUser ? IS_ADMIN_ROLE(appUser.position) : false;
 
   return (
     <AuthContext.Provider value={{ firebaseUser, appUser, loading, isAdmin }}>

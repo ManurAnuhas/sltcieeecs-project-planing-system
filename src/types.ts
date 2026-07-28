@@ -21,7 +21,7 @@ export const MAIN_CS_POSITIONS: UserRole[] = [
 ];
 
 export const IS_ADMIN_ROLE = (role: UserRole): boolean =>
-  MAIN_CS_POSITIONS.includes(role);
+  role === 'Webmaster' || role === 'Assistant Webmaster';
 
 export interface AppUser {
   uid: string;

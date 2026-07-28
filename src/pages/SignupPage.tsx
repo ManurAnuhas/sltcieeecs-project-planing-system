@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { signUpUser, isAllowedEmail } from '../services/firebaseService';
 import { MAIN_CS_POSITIONS } from '../types';
 import type { UserRole } from '../types';
@@ -13,6 +14,7 @@ export const SignupPage: React.FC = () => {
   const [showPwd, setShowPwd] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const ALL_POSITIONS: UserRole[] = [...MAIN_CS_POSITIONS, 'Other'];
 
@@ -36,7 +38,7 @@ export const SignupPage: React.FC = () => {
     setLoading(true);
     try {
       await signUpUser(email, password, name, position);
-      // Auth state change handled by AuthContext → redirect to dashboard
+      navigate('/', { replace: true });
     } catch (err: any) {
       const code = err.code || '';
       if (code === 'auth/email-already-in-use') {
