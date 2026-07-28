@@ -9,7 +9,7 @@ interface SummaryCardsProps {
   onOpenSummaryModal: () => void;
   onOpenAddModal: () => void;
   onExportCSV: () => void;
-  onImportCSV: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onImportCSV?: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 export const SummaryCards: React.FC<SummaryCardsProps> = ({

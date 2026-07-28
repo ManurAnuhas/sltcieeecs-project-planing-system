@@ -64,7 +64,9 @@ export const FlyerFormModal: React.FC<FlyerFormModalProps> = ({ item, projectId,
       driveLink: formData.driveLink || '',
       status: formData.status || 'Draft',
       priority: formData.priority || 'Medium',
-      notes: formData.notes || ''
+      notes: formData.notes || '',
+      createdAt: formData.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
     onSave(newItem);

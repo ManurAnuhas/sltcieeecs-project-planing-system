@@ -5,27 +5,27 @@ export const INITIAL_PROJECTS: ProjectWorkspace[] = [
     id: 'proj-1',
     name: 'IEEE CS Tech Talk 2026',
     description: 'Annual flagship technical talk series on AI & Software Engineering',
-    chairperson: 'Kasun Perera (Chairperson)',
-    coChairpersons: [
-      'Nimali Silva (Co-Chair 1)',
-      'Sahan Wickramasinghe (Co-Chair 2)',
-      'Dilini Bandara (Co-Chair 3)',
-      'Kavindu Jayasooriya (Co-Chair 4)'
-    ],
-    createdDate: '2026-07-01',
-    shareCode: 'TECTALK2026'
+    createdBy: 'system',
+    chairpersonUid: 'u-1',
+    chairpersonName: 'Kasun Perera (Chairman)',
+    coChairUids: ['u-2'],
+    pvLeadUid: 'u-3',
+    memberUids: ['u-1', 'u-2', 'u-3'],
+    shareCode: 'TECTALK2026',
+    createdAt: '2026-07-01T00:00:00.000Z',
   },
   {
     id: 'proj-2',
     name: 'CodeSprint 5.0 Hackathon',
     description: 'Inter-university 24-hour coding challenge',
-    chairperson: 'Kamal Jayawardena (Chairperson)',
-    coChairpersons: [
-      'Ruwan Fernando (Co-Chair 1)',
-      'Anuki Perera (Co-Chair 2)'
-    ],
-    createdDate: '2026-07-15',
-    shareCode: 'CODESPRINT5'
+    createdBy: 'system',
+    chairpersonUid: 'u-1',
+    chairpersonName: 'Kamal Jayawardena (Chairman)',
+    coChairUids: [],
+    pvLeadUid: 'u-3',
+    memberUids: ['u-1', 'u-3'],
+    shareCode: 'CODESPRINT5',
+    createdAt: '2026-07-15T00:00:00.000Z',
   }
 ];
 
@@ -46,7 +46,9 @@ export const INITIAL_ASSET_ITEMS: AssetPlanItem[] = [
     driveLink: 'https://drive.google.com/drive/folders/sample1',
     status: 'Scheduled',
     priority: 'High',
-    notes: 'Approved by Project Chairperson'
+    notes: 'Approved by Project Chairperson',
+    createdAt: '2026-07-01T00:00:00.000Z',
+    updatedAt: '2026-07-01T00:00:00.000Z',
   },
   {
     id: 'asset-102',
@@ -64,7 +66,9 @@ export const INITIAL_ASSET_ITEMS: AssetPlanItem[] = [
     driveLink: 'https://drive.google.com/drive/folders/sample_video',
     status: 'In Design',
     priority: 'Urgent',
-    notes: 'Video rendering in 4K'
+    notes: 'Video rendering in 4K',
+    createdAt: '2026-07-01T00:00:00.000Z',
+    updatedAt: '2026-07-01T00:00:00.000Z',
   },
   {
     id: 'asset-103',
@@ -82,7 +86,9 @@ export const INITIAL_ASSET_ITEMS: AssetPlanItem[] = [
     driveLink: '',
     status: 'Draft',
     priority: 'Medium',
-    notes: 'Awaiting signature vectors'
+    notes: 'Awaiting signature vectors',
+    createdAt: '2026-07-01T00:00:00.000Z',
+    updatedAt: '2026-07-01T00:00:00.000Z',
   },
   {
     id: 'asset-201',
@@ -100,6 +106,8 @@ export const INITIAL_ASSET_ITEMS: AssetPlanItem[] = [
     driveLink: 'https://drive.google.com/drive/folders/sample_codesprint',
     status: 'Scheduled',
     priority: 'Urgent',
-    notes: 'Form link in bio'
+    notes: 'Form link in bio',
+    createdAt: '2026-07-01T00:00:00.000Z',
+    updatedAt: '2026-07-01T00:00:00.000Z',
   }
 ];

@@ -1,113 +1,117 @@
-import { useState, useEffect } from 'react';
-import { INITIAL_PROJECTS, INITIAL_ASSET_ITEMS } from './initialData';
-import type { ProjectWorkspace, AssetPlanItem, UserProfile } from './types';
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { LoginPage } from './pages/LoginPage';
+import { SignupPage } from './pages/SignupPage';
+import { AdminPage } from './pages/AdminPage';
+import { PublicViewPage } from './pages/PublicViewPage';
+import {
+  subscribeUserProjects,
+  subscribeProjectAssets,
+  createAsset,
+  updateAsset,
+  deleteAsset,
+  logoutUser,
+} from './services/firebaseService';
+import type { ProjectWorkspace, AssetPlanItem } from './types';
 import { SummaryCards } from './components/SummaryCards';
 import { FlyerTable } from './components/FlyerTable';
 import { FlyerFormModal } from './components/FlyerFormModal';
 import { SummaryModal } from './components/SummaryModal';
 import { ProjectSelector } from './components/ProjectSelector';
-import { AuthModal } from './components/AuthModal';
-import { User } from 'lucide-react';
+import { LogOut, Shield, User as UserIcon } from 'lucide-react';
 
-export function App() {
-  // Current Logged In User State
-  const [currentUser, setCurrentUser] = useState<UserProfile>(() => {
-    const savedUser = localStorage.getItem('sltc_ieee_cs_user');
-    if (savedUser) {
-      try { return JSON.parse(savedUser); } catch (e) {}
-    }
-    return {
-      id: 'u-1',
-      name: 'Kasun Perera',
-      email: 'kasun.chair@sltc.lk',
-      role: 'Chairperson'
-    };
-  });
+// Protected Route Wrapper
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { firebaseUser, loading } = useAuth();
 
-  // Projects State
-  const [projects, setProjects] = useState<ProjectWorkspace[]>(() => {
-    const savedProjects = localStorage.getItem('sltc_ieee_cs_projects');
-    if (savedProjects) {
-      try { return JSON.parse(savedProjects); } catch (e) {}
-    }
-    return INITIAL_PROJECTS;
-  });
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <img src="/cs-icon.png" alt="IEEE CS" style={{ height: '48px', margin: '0 auto 16px', display: 'block' }} />
+          <p style={{ color: 'var(--text-muted)' }}>Loading authentication...</p>
+        </div>
+      </div>
+    );
+  }
 
-  // Active Project Selection
-  const [currentProjectId, setCurrentProjectId] = useState<string>(() => {
-    const params = new URLSearchParams(window.location.search);
-    const codeParam = params.get('project');
-    if (codeParam) {
-      const match = INITIAL_PROJECTS.find(p => p.shareCode === codeParam);
-      if (match) return match.id;
-    }
-    return projects[0]?.id || 'proj-1';
-  });
+  if (!firebaseUser) {
+    return <Navigate to="/login" replace />;
+  }
 
-  // Assets State
-  const [assetItems, setAssetItems] = useState<AssetPlanItem[]>(() => {
-    const savedAssets = localStorage.getItem('sltc_ieee_cs_assets');
-    if (savedAssets) {
-      try { return JSON.parse(savedAssets); } catch (e) {}
-    }
-    return INITIAL_ASSET_ITEMS;
-  });
+  return <>{children}</>;
+};
+
+// Main Dashboard View
+const Dashboard: React.FC = () => {
+  const { appUser, isAdmin } = useAuth();
+  const navigate = useNavigate();
+
+  const [projects, setProjects] = useState<ProjectWorkspace[]>([]);
+  const [currentProjectId, setCurrentProjectId] = useState<string>('');
+  const [assetItems, setAssetItems] = useState<AssetPlanItem[]>([]);
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<AssetPlanItem | null>(null);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
-  const [isAuthOpen, setIsAuthOpen] = useState(false);
 
-  // Sync state to local storage
+  // Subscribe to Projects where user has access
   useEffect(() => {
-    localStorage.setItem('sltc_ieee_cs_user', JSON.stringify(currentUser));
-  }, [currentUser]);
+    if (!appUser) return;
+    const unsub = subscribeUserProjects(appUser.uid, isAdmin, (projs) => {
+      setProjects(projs);
+      if (projs.length > 0 && !currentProjectId) {
+        setCurrentProjectId(projs[0].id);
+      }
+    });
+    return () => unsub();
+  }, [appUser, isAdmin]);
 
+  // Subscribe to Assets for active project
   useEffect(() => {
-    localStorage.setItem('sltc_ieee_cs_projects', JSON.stringify(projects));
-  }, [projects]);
-
-  useEffect(() => {
-    localStorage.setItem('sltc_ieee_cs_assets', JSON.stringify(assetItems));
-  }, [assetItems]);
+    if (!currentProjectId) {
+      setAssetItems([]);
+      return;
+    }
+    const unsub = subscribeProjectAssets(currentProjectId, setAssetItems);
+    return () => unsub();
+  }, [currentProjectId]);
 
   const activeProject = projects.find(p => p.id === currentProjectId) || projects[0];
 
-  // RBAC Permission checks
-  const canEditProject = currentUser.role === 'Chairperson' || currentUser.role === 'Co-Chairperson';
-  const canUpdateStatusOnly = currentUser.role === 'PV-Team';
+  // RBAC Permission checks for active project
+  const isChairOrCoChair = activeProject && (
+    activeProject.chairpersonUid === appUser?.uid ||
+    activeProject.coChairUids.includes(appUser?.uid || '')
+  );
+  const canEditProject = isAdmin || isChairOrCoChair;
+  const canUpdateStatusOnly = !canEditProject && activeProject?.pvLeadUid === appUser?.uid;
 
-  // Filter items for current active project workspace
-  const currentProjectAssets = assetItems.filter(item => item.projectId === currentProjectId);
-
-  const handleCreateProject = (newProj: ProjectWorkspace) => {
-    setProjects([newProj, ...projects]);
-    setCurrentProjectId(newProj.id);
-  };
-
-  const handleSaveAsset = (item: AssetPlanItem) => {
+  const handleSaveAsset = async (item: AssetPlanItem) => {
     if (editingItem) {
-      setAssetItems(assetItems.map(i => (i.id === item.id ? item : i)));
+      await updateAsset(item.id, item);
     } else {
-      setAssetItems([item, ...assetItems]);
+      await createAsset(item);
     }
     setIsFormOpen(false);
     setEditingItem(null);
   };
 
-  const handleDeleteAsset = (id: string) => {
+  const handleDeleteAsset = async (id: string) => {
     if (confirm('Are you sure you want to delete this planned asset?')) {
-      setAssetItems(assetItems.filter(i => i.id !== id));
+      await deleteAsset(id);
     }
   };
 
-  const handleStatusChange = (id: string, newStatus: AssetPlanItem['status']) => {
-    setAssetItems(assetItems.map(i => (i.id === id ? { ...i, status: newStatus } : i)));
+  const handleStatusChange = async (id: string, newStatus: AssetPlanItem['status']) => {
+    await updateAsset(id, { status: newStatus });
   };
 
   const handleExportCSV = () => {
+    if (!activeProject) return;
     const headers = ['ID', 'Asset Category', 'Title', 'Type', 'Release Date', 'Release Time', 'Status', 'PV Designer', 'Writer', 'Platforms', 'Drive Link'];
-    const rows = currentProjectAssets.map(i => [
+    const rows = assetItems.map(i => [
       i.id,
       `"${i.category}"`,
       `"${i.title}"`,
@@ -133,69 +137,80 @@ export function App() {
 
   return (
     <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '24px 16px' }}>
-      {/* Top Header Bar with IEEE CS Logo & Profile Switcher */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0px' }}>
-          {/* IEEE CS Student Branch Logo */}
+      {/* Top Header Bar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.08)', flexWrap: 'wrap', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <img
             src="/cs-logo-full.png"
-            alt="IEEE Computer Society - Student Branch Chapter of SLTC"
-            style={{ height: '52px', objectFit: 'contain', filter: 'brightness(0) invert(1)' }}
+            alt="IEEE Computer Society - SLTC"
+            style={{ height: '48px', objectFit: 'contain', filter: 'brightness(0) invert(1)' }}
           />
         </div>
 
-        {/* Current Active Account Profile Badge */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button
-            className="btn btn-outline"
-            style={{ padding: '6px 14px', fontSize: '0.85rem' }}
-            onClick={() => setIsAuthOpen(true)}
-          >
-            <User size={16} style={{ color: 'var(--accent-cyan)' }} />
-            <span>{currentUser.name}</span>
-            <span className={`badge ${currentUser.role === 'Chairperson' ? 'badge-published' : currentUser.role === 'Co-Chairperson' ? 'badge-scheduled' : currentUser.role === 'PV-Team' ? 'badge-in-design' : 'badge-draft'}`}>
-              {currentUser.role}
-            </span>
+          {isAdmin && (
+            <button className="btn btn-gold" onClick={() => navigate('/admin')} style={{ padding: '6px 14px', fontSize: '0.85rem' }}>
+              <Shield size={16} /> Admin Panel
+            </button>
+          )}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <UserIcon size={16} style={{ color: 'var(--accent-cyan)' }} />
+            <span style={{ fontSize: '0.88rem', fontWeight: 600 }}>{appUser?.name}</span>
+            <span className="badge badge-published" style={{ fontSize: '0.7rem' }}>{appUser?.position}</span>
+          </div>
+
+          <button className="btn btn-outline" onClick={logoutUser} style={{ padding: '6px 12px', fontSize: '0.85rem', color: '#f87171' }}>
+            <LogOut size={16} /> Sign Out
           </button>
         </div>
       </div>
 
-      {/* Workspace Switcher & Clean Project Creator */}
-      <ProjectSelector
-        projects={projects}
-        currentProjectId={currentProjectId}
-        onSelectProject={id => setCurrentProjectId(id)}
-        onCreateProject={handleCreateProject}
-        canEdit={canEditProject}
-      />
+      {/* Projects Dropdown & Access Control */}
+      {projects.length === 0 ? (
+        <div className="glass-panel" style={{ padding: '48px', textAlign: 'center', margin: '40px 0' }}>
+          <img src="/cs-icon.png" alt="IEEE CS" style={{ height: '48px', margin: '0 auto 16px', display: 'block' }} />
+          <h3 style={{ fontSize: '1.2rem', marginBottom: '8px' }}>No Assigned Projects</h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: '500px', margin: '0 auto' }}>
+            You have not been assigned to any project workspace yet. Ask an IEEE CS Main Committee Admin or Project Chairperson to assign you.
+          </p>
+        </div>
+      ) : (
+        <>
+          <ProjectSelector
+            projects={projects}
+            currentProjectId={currentProjectId}
+            onSelectProject={id => setCurrentProjectId(id)}
+            onCreateProject={() => {}}
+            canEdit={canEditProject}
+          />
 
-      {/* KPI Cards & Main Actions */}
-      <SummaryCards
-        items={currentProjectAssets}
-        projectName={activeProject.name}
-        canEdit={canEditProject}
-        onOpenSummaryModal={() => setIsSummaryOpen(true)}
-        onOpenAddModal={() => {
-          setEditingItem(null);
-          setIsFormOpen(true);
-        }}
-        onExportCSV={handleExportCSV}
-        onImportCSV={() => {}}
-      />
+          <SummaryCards
+            items={assetItems}
+            projectName={activeProject?.name || ''}
+            canEdit={canEditProject}
+            onOpenSummaryModal={() => setIsSummaryOpen(true)}
+            onOpenAddModal={() => {
+              setEditingItem(null);
+              setIsFormOpen(true);
+            }}
+            onExportCSV={handleExportCSV}
+          />
 
-      {/* Main Asset Table */}
-      <FlyerTable
-        items={currentProjectAssets}
-        projectName={activeProject.name}
-        canEdit={canEditProject}
-        canUpdateStatusOnly={canUpdateStatusOnly}
-        onEditItem={item => {
-          setEditingItem(item);
-          setIsFormOpen(true);
-        }}
-        onDeleteItem={handleDeleteAsset}
-        onStatusChange={handleStatusChange}
-      />
+          <FlyerTable
+            items={assetItems}
+            projectName={activeProject?.name || ''}
+            canEdit={canEditProject}
+            canUpdateStatusOnly={canUpdateStatusOnly}
+            onEditItem={item => {
+              setEditingItem(item);
+              setIsFormOpen(true);
+            }}
+            onDeleteItem={handleDeleteAsset}
+            onStatusChange={handleStatusChange}
+          />
+        </>
+      )}
 
       {/* Modals */}
       {isFormOpen && (
@@ -210,25 +225,45 @@ export function App() {
         />
       )}
 
-      {isSummaryOpen && (
+      {isSummaryOpen && activeProject && (
         <SummaryModal
-          items={currentProjectAssets}
+          items={assetItems}
           project={activeProject}
           onClose={() => setIsSummaryOpen(false)}
         />
       )}
-
-      {isAuthOpen && (
-        <AuthModal
-          currentUser={currentUser}
-          onSwitchUser={user => {
-            setCurrentUser(user);
-            setIsAuthOpen(false);
-          }}
-          onClose={() => setIsAuthOpen(false)}
-        />
-      )}
     </div>
+  );
+};
+
+export function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/view/:shareCode" element={<PublicViewPage />} />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <AdminPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 

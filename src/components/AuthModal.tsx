@@ -1,51 +1,56 @@
 import React, { useState } from 'react';
-import type { UserProfile, UserRole } from '../types';
-import { Eye, Edit } from 'lucide-react';
+import type { AppUser, UserRole } from '../types';
+import { Edit } from 'lucide-react';
 
 interface AuthModalProps {
-  currentUser: UserProfile;
-  onSwitchUser: (user: UserProfile) => void;
+  currentUser: AppUser;
+  onSwitchUser: (user: AppUser) => void;
   onClose: () => void;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({ currentUser, onSwitchUser, onClose }) => {
   const [name, setName] = useState(currentUser.name);
-  const [role, setRole] = useState<UserRole>(currentUser.role);
+  const [role, setRole] = useState<UserRole>(currentUser.position);
 
-  const presetProfiles: UserProfile[] = [
+  const presetProfiles: AppUser[] = [
     {
-      id: 'u-1',
+      uid: 'u-1',
       name: 'Kasun Perera',
-      email: 'kasun.chair@sltc.lk',
-      role: 'Chairperson'
+      email: 'kasun.chair@sltc.ac.lk',
+      position: 'Chairman',
+      createdAt: new Date().toISOString(),
     },
     {
-      id: 'u-2',
+      uid: 'u-2',
       name: 'Nimali Silva',
-      email: 'nimali.cochair@sltc.lk',
-      role: 'Co-Chairperson'
+      email: 'nimali.cochair@sltc.ac.lk',
+      position: 'Vice-Chairman',
+      createdAt: new Date().toISOString(),
     },
     {
-      id: 'u-3',
+      uid: 'u-3',
       name: 'PV Team Lead (Design & Media)',
-      email: 'pv.team@sltc.lk',
-      role: 'PV-Team'
+      email: 'pv.team@sltc.ac.lk',
+      position: 'Webmaster',
+      createdAt: new Date().toISOString(),
     },
     {
-      id: 'u-4',
+      uid: 'u-4',
       name: 'SLTC IEEE Member (Viewer)',
-      email: 'member@sltc.lk',
-      role: 'Member-Viewer'
+      email: 'member@sltc.ac.lk',
+      position: 'Other',
+      createdAt: new Date().toISOString(),
     }
   ];
 
   const handleCustomSave = (e: React.FormEvent) => {
     e.preventDefault();
     onSwitchUser({
-      id: `u-custom-${Date.now()}`,
+      uid: `u-custom-${Date.now()}`,
       name: name || 'Anonymous User',
-      email: `${name.toLowerCase().replace(/\s+/g, '')}@sltc.lk`,
-      role
+      email: `${name.toLowerCase().replace(/\s+/g, '')}@sltc.ac.lk`,
+      position: role,
+      createdAt: new Date().toISOString(),
     });
   };
 
@@ -73,7 +78,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ currentUser, onSwitchUser,
           <label style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>QUICK PRESET PROFILES:</label>
           {presetProfiles.map(p => (
             <div
-              key={p.id}
+              key={p.uid}
               onClick={() => onSwitchUser(p)}
               className="glass-panel"
               style={{
@@ -82,8 +87,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ currentUser, onSwitchUser,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                border: currentUser.role === p.role && currentUser.name === p.name ? '1px solid var(--accent-cyan)' : '1px solid rgba(255,255,255,0.08)',
-                background: currentUser.role === p.role && currentUser.name === p.name ? 'rgba(0,210,255,0.08)' : 'rgba(255,255,255,0.02)'
+                border: currentUser.position === p.position && currentUser.name === p.name ? '1px solid var(--accent-cyan)' : '1px solid rgba(255,255,255,0.08)',
+                background: currentUser.position === p.position && currentUser.name === p.name ? 'rgba(0,210,255,0.08)' : 'rgba(255,255,255,0.02)'
               }}
             >
               <div>
@@ -91,9 +96,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ currentUser, onSwitchUser,
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{p.email}</div>
               </div>
 
-              <span className={`badge ${p.role === 'Chairperson' ? 'badge-published' : p.role === 'Co-Chairperson' ? 'badge-scheduled' : p.role === 'PV-Team' ? 'badge-in-design' : 'badge-draft'}`}>
-                {p.role === 'Chairperson' || p.role === 'Co-Chairperson' ? <Edit size={12} /> : <Eye size={12} />}
-                {p.role}
+              <span className="badge badge-published">
+                <Edit size={12} />
+                {p.position}
               </span>
             </div>
           ))}

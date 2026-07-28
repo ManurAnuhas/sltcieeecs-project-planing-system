@@ -17,8 +17,7 @@ export const SummaryModal: React.FC<SummaryModalProps> = ({ items, project, onCl
     const today = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
     let text = `📌 *SLTC IEEE CS RELEASE SCHEDULE UPDATE*\n`;
     text += `🔷 *Project: ${project.name}*\n`;
-    text += `👤 Chairperson: ${project.chairperson}\n`;
-    text += `👥 Co-Chairs: ${project.coChairpersons.join(', ')}\n`;
+    text += `👤 Chairperson: ${project.chairpersonName}\n`;
     text += `🗓️ Date: ${today}\n\n`;
 
     if (items.length === 0) {
@@ -50,7 +49,7 @@ export const SummaryModal: React.FC<SummaryModalProps> = ({ items, project, onCl
     let text = `========================================================\n`;
     text += `SLTC IEEE COMPUTER SOCIETY - ASSET & MEDIA REPORT\n`;
     text += `Project: ${project.name}\n`;
-    text += `Chairperson: ${project.chairperson} | Co-Chairs: ${project.coChairpersons.join(', ')}\n`;
+    text += `Chairperson: ${project.chairpersonName}\n`;
     text += `Date: ${new Date().toISOString().split('T')[0]}\n`;
     text += `========================================================\n\n`;
 

@@ -35,11 +35,16 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
       id: `proj-${Date.now()}`,
       name,
       description: description || 'SLTC IEEE CS Event / Project Workspace',
-      chairperson: chairperson || 'Project Chairperson',
-      coChairpersons: coChairs.filter(c => c.trim() !== ''),
+      createdBy: 'system',
+      chairpersonUid: 'u-1',
+      chairpersonName: chairperson || 'Project Chairperson',
+      coChairUids: [],
+      pvLeadUid: '',
+      memberUids: ['u-1'],
       createdDate: new Date().toISOString().split('T')[0],
+      createdAt: new Date().toISOString(),
       shareCode: name.substring(0, 4).toUpperCase() + Math.floor(1000 + Math.random() * 9000)
-    };
+    } as any;
 
     onCreateProject(newProj);
     setIsModalOpen(false);
@@ -99,9 +104,9 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
         {currentProj && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(255,255,255,0.03)', padding: '8px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
             <div style={{ fontSize: '0.8rem' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Chairperson:</span> <strong>{currentProj.chairperson}</strong>
+              <span style={{ color: 'var(--text-muted)' }}>Chairperson:</span> <strong>{currentProj.chairpersonName}</strong>
               <div style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)', marginTop: '2px' }}>
-                Co-Chairs ({currentProj.coChairpersons.length}): {currentProj.coChairpersons.join(', ')}
+                Co-Chairs ({currentProj.coChairUids.length}) | Members ({currentProj.memberUids.length})
               </div>
             </div>
           </div>
