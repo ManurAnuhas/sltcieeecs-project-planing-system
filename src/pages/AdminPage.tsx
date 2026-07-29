@@ -184,9 +184,9 @@ export const AdminPage: React.FC = () => {
         {/* Brand Header */}
         <div style={{ marginBottom: '28px', paddingLeft: '4px' }}>
           <img
-            src="/cs-logo-sidebar.png"
+            src="/cs-icon.png"
             alt="IEEE CS SLTC"
-            style={{ height: '54px', objectFit: 'contain', marginBottom: '10px', display: 'block' }}
+            style={{ height: '48px', objectFit: 'contain', marginBottom: '10px', display: 'block' }}
           />
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: '6px',
