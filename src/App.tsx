@@ -324,12 +324,7 @@ const Dashboard: React.FC = () => {
           </button>
         )}
 
-        {isMainCommittee && (
-          <button className="btn" onClick={() => { getAllUsers().then(setAllUsers); setShowCreateProject(true); onNavClick?.(); }}
-            style={{ width: '100%', height: '44px', justifyContent: 'flex-start', padding: '0 14px', gap: '10px', fontSize: '0.85rem', borderRadius: '12px', fontWeight: 700, background: 'linear-gradient(135deg, rgba(6,182,212,0.5), rgba(2,132,199,0.3))', border: '1px solid rgba(6,182,212,0.6)', color: '#e0fbff', boxShadow: '0 4px 14px rgba(6,182,212,0.25)', transition: 'all 0.2s ease' }}>
-            <Plus size={17} style={{ color: '#22d3ee' }} /> New Project
-          </button>
-        )}
+
 
         {isMainCommittee && (
           <button className="btn" onClick={() => { refreshPending(); setShowPending(p => !p); onNavClick?.(); }}
@@ -464,7 +459,13 @@ const Dashboard: React.FC = () => {
             Project Planning Dashboard
           </div>
         </div>
-        <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {isMainCommittee && (
+            <button className="btn" onClick={() => { getAllUsers().then(setAllUsers); setShowCreateProject(true); }}
+              style={{ height: '36px', padding: '0 14px', gap: '6px', fontSize: '0.82rem', borderRadius: '10px', fontWeight: 700, background: 'linear-gradient(135deg, rgba(6,182,212,0.5), rgba(2,132,199,0.3))', border: '1px solid rgba(6,182,212,0.6)', color: '#e0fbff', boxShadow: '0 2px 10px rgba(6,182,212,0.25)', transition: 'all 0.2s ease' }}>
+              <Plus size={16} style={{ color: '#22d3ee' }} /> New Project
+            </button>
+          )}
           {appUser && (
             <NotificationPanel
               notifications={notifications}
