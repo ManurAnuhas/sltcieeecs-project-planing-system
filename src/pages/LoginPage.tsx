@@ -90,8 +90,8 @@ export const LoginPage: React.FC = () => {
         <div style={{ textAlign: 'center', marginBottom: '36px' }}>
           <img
             src="/cs-logo-full.png"
-            alt="IEEE Computer Society - SLTC"
-            style={{ height: '64px', objectFit: 'contain', filter: 'brightness(0) invert(1)', margin: '0 auto' }}
+            alt="1PHI SLTC"
+            style={{ height: '64px', objectFit: 'contain', margin: '0 auto' }}
           />
           <p style={{ marginTop: '12px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
             Asset & Flyer Release Planning System

@@ -79,7 +79,7 @@ export const PublicViewPage: React.FC = () => {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px', paddingBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.08)', flexWrap: 'wrap', gap: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <img src="/cs-logo-full.png" alt="IEEE CS SLTC" style={{ height: '44px', objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
+          <img src="/cs-logo-full.png" alt="1PHI SLTC" style={{ height: '44px', objectFit: 'contain' }} />
         </div>
         <span className="badge badge-draft" style={{ padding: '6px 14px', fontSize: '0.8rem' }}>
           👁️ Member View — Read Only

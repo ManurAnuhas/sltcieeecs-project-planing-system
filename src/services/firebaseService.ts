@@ -24,7 +24,7 @@ import {
   sendPasswordResetEmail,
 } from 'firebase/auth';
 import { auth, db } from '../firebase';
-import type { AppUser, AppNotification, ProjectWorkspace, AssetPlanItem, UserRole } from '../types';
+import type { AppUser, AppNotification, ProjectWorkspace, AssetPlanItem, UserRole, LogoItem } from '../types';
 import { NEEDS_APPROVAL } from '../types';
 
 // ────────────────────────────────────────────
@@ -62,6 +62,17 @@ export const signUpUser = async (
 
   await setDoc(doc(db, 'users', cred.user.uid), userData);
   return { uid: cred.user.uid, ...userData };
+};
+
+/** Returns an array of main-committee positions already taken (registered in Firestore) */
+export const getTakenMainPositions = async (): Promise<string[]> => {
+  const snap = await getDocs(collection(db, 'users'));
+  const taken: string[] = [];
+  snap.forEach(d => {
+    const data = d.data();
+    if (data.position) taken.push(data.position as string);
+  });
+  return taken;
 };
 
 export const loginUser = (email: string, password: string) =>
@@ -151,6 +162,17 @@ export const rejectUser = async (uid: string, actorName: string, userName: strin
 
 export const updateUserProfile = async (uid: string, updates: Partial<AppUser>): Promise<void> => {
   await updateDoc(doc(db, 'users', uid), updates);
+  if (auth.currentUser && auth.currentUser.uid === uid) {
+    const profileUpdates: { displayName?: string; photoURL?: string } = {};
+    if (updates.name) profileUpdates.displayName = updates.name;
+    // Firebase Auth photoURL has a max length — skip base64 data URLs (they are too long)
+    if (updates.photoURL !== undefined && !updates.photoURL.startsWith('data:')) {
+      profileUpdates.photoURL = updates.photoURL;
+    }
+    if (Object.keys(profileUpdates).length > 0) {
+      await updateProfile(auth.currentUser, profileUpdates);
+    }
+  }
 };
 
 export const deleteUserAccount = async (uid: string): Promise<void> => {
@@ -284,3 +306,31 @@ export const getPublicProjectAssets = async (shareCode: string) => {
   const assets = snap.docs.map(d => ({ id: d.id, ...d.data() } as AssetPlanItem));
   return { project, assets };
 };
+
+// ────────────────────────────────────────────
+// LOGO / BRAND ASSET SERVICES
+// ────────────────────────────────────────────
+
+export const subscribeGlobalLogos = (callback: (logos: LogoItem[]) => void): Unsubscribe => {
+  return onSnapshot(collection(db, 'logos'), snap => {
+    const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as LogoItem));
+    callback(items.filter(i => !i.projectId));
+  });
+};
+
+export const subscribeProjectLogos = (projectId: string, callback: (logos: LogoItem[]) => void): Unsubscribe => {
+  const q = query(collection(db, 'logos'), where('projectId', '==', projectId));
+  return onSnapshot(q, snap => {
+    callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as LogoItem)));
+  });
+};
+
+export const addLogoItem = async (data: Omit<LogoItem, 'id'>): Promise<string> => {
+  const docRef = await addDoc(collection(db, 'logos'), {
+    ...data,
+    createdAt: new Date().toISOString(),
+  });
+  return docRef.id;
+};
+
+export const deleteLogoItem = (id: string) => deleteDoc(doc(db, 'logos', id));

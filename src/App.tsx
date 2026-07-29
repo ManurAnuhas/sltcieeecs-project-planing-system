@@ -27,7 +27,11 @@ import { FlyerFormModal } from './components/FlyerFormModal';
 import { SummaryModal } from './components/SummaryModal';
 import { ProjectSelector } from './components/ProjectSelector';
 import { NotificationPanel } from './components/NotificationPanel';
-import { LogOut, Shield, User as UserIcon, Plus, Clock, Check, X } from 'lucide-react';
+import { ProfileModal } from './components/ProfileModal';
+import { LogoLibraryModal } from './components/LogoLibraryModal';
+import { ProjectLogoVault } from './components/ProjectLogoVault';
+import { useConfirm, useToast } from './components/DialogComponents';
+import { LogOut, Shield, User as UserIcon, Plus, Clock, Check, X, Menu, Settings, Image as ImageIcon } from 'lucide-react';
 
 // Protected Route Wrapper — also handles pending approval screen
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -51,7 +55,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
         <div style={{ textAlign: 'center', maxWidth: '480px' }}>
-          <img src="/cs-logo-full.png" alt="IEEE CS" style={{ height: '64px', margin: '0 auto 24px', display: 'block', filter: 'brightness(0) invert(1)' }} />
+          <img src="/cs-logo-full.png" alt="1PHI SLTC" style={{ height: '64px', margin: '0 auto 24px', display: 'block' }} />
           <div className="glass-panel" style={{ padding: '36px 28px' }}>
             <div style={{ fontSize: '3rem', marginBottom: '16px' }}>⏳</div>
             <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '10px' }}>Awaiting Approval</h2>
@@ -136,6 +140,12 @@ const Dashboard: React.FC = () => {
   // Notifications
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [notifOpen, setNotifOpen] = useState(false);
+  const { confirm, ConfirmDialogNode } = useConfirm();
+  const { toast, ToastNode } = useToast();
+
+  // Mobile drawer state
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const closeDrawer = () => setDrawerOpen(false);
 
   // All 8 main committee: Create Project modal
   const [showCreateProject, setShowCreateProject] = useState(false);
@@ -149,6 +159,9 @@ const Dashboard: React.FC = () => {
   // All 8 main committee: Pending approvals
   const [pendingUsers, setPendingUsers] = useState<AppUser[]>([]);
   const [showPending, setShowPending] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showGlobalLogoHub, setShowGlobalLogoHub] = useState(false);
+  const [activeTab, setActiveTab] = useState<'planner' | 'logos'>('planner');
 
   // Subscribe to Projects
   useEffect(() => {
@@ -199,7 +212,8 @@ const Dashboard: React.FC = () => {
   };
 
   const handleDeleteAsset = async (id: string) => {
-    if (confirm('Are you sure you want to delete this planned asset?')) await deleteAsset(id);
+    const ok = await confirm({ title: 'Delete Asset', message: 'Are you sure you want to delete this planned asset? This action cannot be undone.', confirmLabel: 'Delete', variant: 'danger' });
+    if (ok) { await deleteAsset(id); toast('Asset deleted.', 'success'); }
   };
 
   const handleStatusChange = async (id: string, newStatus: AssetPlanItem['status']) => {
@@ -239,9 +253,11 @@ const Dashboard: React.FC = () => {
     getAllUsers().then(setAllUsers);
   };
   const handleReject = async (u: AppUser) => {
-    if (confirm(`Reject ${u.name}'s access request?`)) {
+    const ok = await confirm({ title: 'Reject Access Request', message: `Reject ${u.name}'s access request? They will not be able to log in.`, confirmLabel: 'Reject', cancelLabel: 'Keep', variant: 'warning' });
+    if (ok) {
       await rejectUser(u.uid, appUser?.name || 'Admin', u.name);
       setPendingUsers(prev => prev.filter(x => x.uid !== u.uid));
+      toast(`${u.name}'s request was rejected.`, 'info');
     }
   };
 
@@ -261,46 +277,194 @@ const Dashboard: React.FC = () => {
     document.body.appendChild(link); link.click(); document.body.removeChild(link);
   };
 
-  return (
-    <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '24px 16px' }}>
-      {/* ── Top Header Bar ── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.08)', flexWrap: 'wrap', gap: '12px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <img src="/cs-logo-full.png" alt="IEEE CS" style={{ height: '44px', objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
+  const SIDEBAR_W = 240;
+
+  // Shared sidebar nav content (used in both desktop sidebar & mobile drawer)
+  const SidebarContent = ({ onNavClick }: { onNavClick?: () => void }) => (
+    <>
+      {/* Brand Header */}
+      <div style={{ marginBottom: '28px', paddingLeft: '4px' }}>
+        <img
+          src="/cs-logo-sidebar.png"
+          alt="IEEE CS SLTC"
+          style={{ height: '54px', objectFit: 'contain', marginBottom: '10px', display: 'block' }}
+        />
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: '6px',
+          padding: '4px 12px', borderRadius: '20px',
+          background: 'linear-gradient(135deg, rgba(247,148,29,0.18), rgba(247,148,29,0.08))',
+          border: '1px solid rgba(247,148,29,0.4)',
+          fontSize: '0.65rem', fontWeight: 800, color: '#F7941D',
+          textTransform: 'uppercase', letterSpacing: '1px',
+        }}>
+          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#F7941D', boxShadow: '0 0 6px #F7941D' }} />
+          PROJECT PORTAL
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+      </div>
 
-          {/* Webmaster only: Admin Panel */}
-          {isWebmaster && (
-            <button className="btn btn-gold" onClick={() => navigate('/admin')} style={{ padding: '6px 14px', fontSize: '0.85rem' }}>
-              <Shield size={16} /> Admin Panel
-            </button>
-          )}
+      <div style={{ fontSize: '0.68rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px', paddingLeft: '8px' }}>
+        NAVIGATION
+      </div>
 
-          {/* All 8 main committee: Create Project */}
-          {isMainCommittee && (
-            <button className="btn btn-primary" onClick={() => { getAllUsers().then(setAllUsers); setShowCreateProject(true); }} style={{ padding: '6px 14px', fontSize: '0.85rem' }}>
-              <Plus size={16} /> New Project
-            </button>
-          )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <button className="btn" onClick={() => { navigate('/'); onNavClick?.(); }}
+          style={{ width: '100%', height: '44px', justifyContent: 'flex-start', padding: '0 14px', gap: '10px', fontSize: '0.85rem', borderRadius: '12px', fontWeight: 700, background: 'linear-gradient(135deg, rgba(0, 98, 155, 0.5), rgba(0, 98, 155, 0.2))', border: '1px solid rgba(0, 98, 155, 0.6)', color: '#e0f0ff', boxShadow: '0 4px 14px rgba(0,98,155,0.25)', transition: 'all 0.2s ease' }}>
+          🏠 Dashboard Home
+        </button>
 
-          {/* All 8 main committee: Pending Approvals */}
-          {isMainCommittee && (
-            <button
-              className="btn btn-outline"
-              onClick={() => { refreshPending(); setShowPending(p => !p); }}
-              style={{ padding: '6px 12px', fontSize: '0.85rem', position: 'relative' }}
-            >
-              <Clock size={16} /> Approvals
-              {pendingUsers.length > 0 && (
-                <span style={{ position: 'absolute', top: '-5px', right: '-5px', background: '#f87171', color: '#fff', borderRadius: '50%', width: '16px', height: '16px', fontSize: '0.65rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>
-                  {pendingUsers.length}
-                </span>
-              )}
-            </button>
-          )}
+        <button className="btn" onClick={() => { setShowGlobalLogoHub(true); onNavClick?.(); }}
+          style={{ width: '100%', height: '44px', justifyContent: 'flex-start', padding: '0 14px', gap: '10px', fontSize: '0.85rem', borderRadius: '12px', fontWeight: 700, background: 'linear-gradient(135deg, rgba(168,85,247,0.4), rgba(168,85,247,0.15))', border: '1px solid rgba(168,85,247,0.5)', color: '#f3e8ff', boxShadow: '0 4px 14px rgba(168,85,247,0.2)', transition: 'all 0.2s ease' }}>
+          <ImageIcon size={17} style={{ color: '#c084fc' }} /> Common Logo Hub
+        </button>
 
-          {/* Notification Bell */}
+        {isWebmaster && (
+          <button className="btn" onClick={() => { navigate('/admin'); onNavClick?.(); }}
+            style={{ width: '100%', height: '44px', justifyContent: 'flex-start', padding: '0 14px', gap: '10px', fontSize: '0.85rem', borderRadius: '12px', fontWeight: 700, background: 'linear-gradient(135deg, rgba(247,148,29,0.55), rgba(247,148,29,0.25))', border: '1px solid rgba(247,148,29,0.7)', color: '#fff8ee', boxShadow: '0 4px 14px rgba(247,148,29,0.3)', transition: 'all 0.2s ease' }}>
+            <Shield size={17} style={{ color: '#F7941D' }} /> Admin Panel
+          </button>
+        )}
+
+        {isMainCommittee && (
+          <button className="btn" onClick={() => { getAllUsers().then(setAllUsers); setShowCreateProject(true); onNavClick?.(); }}
+            style={{ width: '100%', height: '44px', justifyContent: 'flex-start', padding: '0 14px', gap: '10px', fontSize: '0.85rem', borderRadius: '12px', fontWeight: 700, background: 'linear-gradient(135deg, rgba(6,182,212,0.5), rgba(2,132,199,0.3))', border: '1px solid rgba(6,182,212,0.6)', color: '#e0fbff', boxShadow: '0 4px 14px rgba(6,182,212,0.25)', transition: 'all 0.2s ease' }}>
+            <Plus size={17} style={{ color: '#22d3ee' }} /> New Project
+          </button>
+        )}
+
+        {isMainCommittee && (
+          <button className="btn" onClick={() => { refreshPending(); setShowPending(p => !p); onNavClick?.(); }}
+            style={{ width: '100%', height: '44px', justifyContent: 'space-between', padding: '0 14px', fontSize: '0.85rem', borderRadius: '12px', fontWeight: 700, background: showPending ? 'linear-gradient(135deg, rgba(251,191,36,0.3), rgba(251,191,36,0.12))' : 'linear-gradient(135deg, rgba(251,191,36,0.15), rgba(251,191,36,0.05))', border: `1px solid ${showPending ? 'rgba(251,191,36,0.6)' : 'rgba(251,191,36,0.3)'}`, color: '#fef3c7', boxShadow: showPending ? '0 4px 14px rgba(251,191,36,0.2)' : 'none', transition: 'all 0.2s ease' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Clock size={17} style={{ color: '#fbbf24' }} /> Approvals
+            </div>
+            {pendingUsers.length > 0 && (
+              <span style={{ background: 'linear-gradient(135deg,#ef4444,#f87171)', color: '#fff', borderRadius: '20px', padding: '2px 8px', fontSize: '0.7rem', fontWeight: 800, boxShadow: '0 2px 8px rgba(239,68,68,0.5)' }}>
+                {pendingUsers.length}
+              </span>
+            )}
+          </button>
+        )}
+      </div>
+
+      <div style={{ flex: 1 }} />
+
+      {/* User Card */}
+      <div
+        onClick={() => setShowProfileModal(true)}
+        style={{
+          background: 'rgba(255,255,255,0.04)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          borderRadius: '12px',
+          padding: '10px 12px',
+          marginBottom: '14px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+        }}
+        title="Click to edit profile"
+      >
+        {appUser?.photoURL ? (
+          <img
+            src={appUser.photoURL}
+            alt={appUser.name}
+            style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '50%',
+              objectFit: 'cover',
+              border: '1.5px solid var(--accent-cyan)',
+              flexShrink: 0,
+            }}
+          />
+        ) : (
+          <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, #006699, #00d2ff)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem', fontWeight: 800, color: '#fff', flexShrink: 0 }}>
+            {appUser?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || <UserIcon size={16} />}
+          </div>
+        )}
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f3f4f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{appUser?.name}</div>
+          <div style={{ fontSize: '0.68rem', color: 'var(--accent-cyan)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{appUser?.position}</div>
+        </div>
+        <Settings size={15} style={{ color: 'var(--text-muted)', opacity: 0.7 }} />
+      </div>
+
+      <button className="btn btn-outline" onClick={logoutUser} title="Sign Out"
+        style={{ width: '100%', height: '40px', justifyContent: 'flex-start', padding: '0 14px', borderRadius: '10px', color: '#f87171', fontSize: '0.85rem', fontWeight: 600, borderColor: 'rgba(248,113,113,0.25)', background: 'rgba(248,113,113,0.05)' }}>
+        <LogOut size={16} /> Sign Out
+      </button>
+
+      <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)', marginTop: '12px', textAlign: 'center' }}>
+        © 2026 IEEE CS SLTC
+      </div>
+    </>
+  );
+
+  return (
+    <>
+      {/* ══════════════════════════════════════════════
+          MOBILE DRAWER BACKDROP
+      ══════════════════════════════════════════════ */}
+      <div className={`mobile-drawer-backdrop ${drawerOpen ? 'open' : ''}`} onClick={closeDrawer} />
+
+      {/* ══════════════════════════════════════════════
+          MOBILE SLIDE-IN DRAWER
+      ══════════════════════════════════════════════ */}
+      <div className={`mobile-drawer ${drawerOpen ? 'open' : ''}`}>
+        <SidebarContent onNavClick={closeDrawer} />
+      </div>
+
+      {/* ══════════════════════════════════════════════
+          FIXED LEFT SIDEBAR — desktop only
+      ══════════════════════════════════════════════ */}
+      <div className="desktop-only" style={{
+        position: 'fixed',
+        top: 0, left: 0, bottom: 0,
+        width: `${SIDEBAR_W}px`,
+        zIndex: 200,
+        background: '#090d16',
+        borderRight: '1px solid rgba(255, 255, 255, 0.07)',
+        boxShadow: '4px 0 30px rgba(0, 0, 0, 0.5)',
+        flexDirection: 'column',
+        padding: '24px 16px',
+      }}>
+        <SidebarContent />
+      </div>
+
+      {/* ══════════════════════════════════════════════
+          FIXED TOP BAR
+      ══════════════════════════════════════════════ */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        /* Desktop: offset by sidebar width; Mobile: full width via CSS var */
+        left: 0,
+        right: 0,
+        zIndex: 180,
+        height: '60px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '0 16px',
+        background: 'rgba(9, 13, 22, 0.85)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.07)',
+      }}>
+        {/* Left: hamburger (mobile) + spacer (desktop) + title */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* Hamburger — mobile only */}
+          <button className="hamburger-btn" onClick={() => setDrawerOpen(o => !o)} aria-label="Open menu">
+            <Menu size={20} />
+          </button>
+          {/* Sidebar spacer on desktop */}
+          <div className="desktop-only" style={{ width: `${SIDEBAR_W - 16}px`, flexShrink: 0 }} />
+          <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#f3f4f6' }}>
+            Project Planning Dashboard
+          </div>
+        </div>
+        <div>
           {appUser && (
             <NotificationPanel
               notifications={notifications}
@@ -309,18 +473,15 @@ const Dashboard: React.FC = () => {
               onToggle={() => setNotifOpen(o => !o)}
             />
           )}
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
-            <UserIcon size={15} style={{ color: 'var(--accent-cyan)' }} />
-            <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{appUser?.name}</span>
-            <span className="badge badge-published" style={{ fontSize: '0.68rem' }}>{appUser?.position}</span>
-          </div>
-
-          <button className="btn btn-outline" onClick={logoutUser} style={{ padding: '6px 10px', color: '#f87171' }}>
-            <LogOut size={16} />
-          </button>
         </div>
       </div>
+
+      {/* ══════════════════════════════════════════════
+          MAIN PAGE CONTENT AREA
+      ══════════════════════════════════════════════ */}
+      {/* Content area: offset by sidebar on desktop, full-width on mobile */}
+      <div style={{ marginLeft: 0, padding: '80px 16px 32px' }}
+        className="main-content">
 
       {/* ── Pending Approvals Panel (main committee only) ── */}
       {isMainCommittee && showPending && (
@@ -388,23 +549,74 @@ const Dashboard: React.FC = () => {
             onCreateProject={() => { getAllUsers().then(setAllUsers); setShowCreateProject(true); }}
             canEdit={canEditProject}
           />
-          <SummaryCards
-            items={assetItems}
-            projectName={activeProject?.name || ''}
-            canEdit={canEditProject}
-            onOpenSummaryModal={() => setIsSummaryOpen(true)}
-            onOpenAddModal={() => { setEditingItem(null); setIsFormOpen(true); }}
-            onExportCSV={handleExportCSV}
-          />
-          <FlyerTable
-            items={assetItems}
-            projectName={activeProject?.name || ''}
-            canEdit={canEditProject}
-            canUpdateStatusOnly={canUpdateStatusOnly}
-            onEditItem={item => { setEditingItem(item); setIsFormOpen(true); }}
-            onDeleteItem={handleDeleteAsset}
-            onStatusChange={handleStatusChange}
-          />
+
+          {/* Project View Sub-Tabs */}
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px' }}>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setActiveTab('planner')}
+              style={{
+                fontSize: '0.88rem',
+                fontWeight: activeTab === 'planner' ? 700 : 500,
+                padding: '8px 16px',
+                borderRadius: '10px',
+                background: activeTab === 'planner' ? 'linear-gradient(135deg, rgba(0, 98, 155, 0.6), rgba(0, 98, 155, 0.3))' : 'rgba(255,255,255,0.03)',
+                border: `1px solid ${activeTab === 'planner' ? '#006699' : 'rgba(255,255,255,0.08)'}`,
+                color: activeTab === 'planner' ? '#e0f0ff' : 'var(--text-muted)',
+                gap: '8px',
+              }}
+            >
+              📊 Asset Release Matrix
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setActiveTab('logos')}
+              style={{
+                fontSize: '0.88rem',
+                fontWeight: activeTab === 'logos' ? 700 : 500,
+                padding: '8px 16px',
+                borderRadius: '10px',
+                background: activeTab === 'logos' ? 'linear-gradient(135deg, rgba(247,148,29,0.5), rgba(247,148,29,0.2))' : 'rgba(255,255,255,0.03)',
+                border: `1px solid ${activeTab === 'logos' ? '#F7941D' : 'rgba(255,255,255,0.08)'}`,
+                color: activeTab === 'logos' ? '#fff' : 'var(--text-muted)',
+                gap: '8px',
+              }}
+            >
+              <ImageIcon size={16} style={{ color: '#F7941D' }} /> Project Logos & Media Vault
+            </button>
+          </div>
+
+          {activeTab === 'planner' ? (
+            <>
+              <SummaryCards
+                items={assetItems}
+                projectName={activeProject?.name || ''}
+                canEdit={canEditProject}
+                onOpenSummaryModal={() => setIsSummaryOpen(true)}
+                onOpenAddModal={() => { setEditingItem(null); setIsFormOpen(true); }}
+                onExportCSV={handleExportCSV}
+              />
+              <FlyerTable
+                items={assetItems}
+                projectName={activeProject?.name || ''}
+                canEdit={canEditProject}
+                canUpdateStatusOnly={canUpdateStatusOnly}
+                onEditItem={item => { setEditingItem(item); setIsFormOpen(true); }}
+                onDeleteItem={handleDeleteAsset}
+                onStatusChange={handleStatusChange}
+              />
+            </>
+          ) : (
+            activeProject && (
+              <ProjectLogoVault
+                project={activeProject}
+                currentUser={appUser}
+                canManage={canEditProject}
+              />
+            )
+          )}
         </>
       )}
 
@@ -469,7 +681,25 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+      </div>
+      {showProfileModal && appUser && (
+        <ProfileModal
+          user={appUser}
+          onClose={() => setShowProfileModal(false)}
+          onSuccess={() => toast('Profile updated successfully!', 'success')}
+        />
+      )}
+      {showGlobalLogoHub && (
+        <LogoLibraryModal
+          currentUser={appUser}
+          isAdmin={isAdmin}
+          onClose={() => setShowGlobalLogoHub(false)}
+        />
+      )}
+      {/* Global modals — rendered outside content div so they're never clipped */}
+      {ConfirmDialogNode}
+      {ToastNode}
+    </>
   );
 };
 

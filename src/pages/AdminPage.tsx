@@ -17,6 +17,7 @@ import type { AppUser, ProjectWorkspace, UserRole } from '../types';
 import { MAIN_CS_POSITIONS } from '../types';
 import { Shield, Plus, Users, FolderOpen, LogOut, Trash2, X, Check, Copy, Clock, Edit, Key } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { useConfirm, useToast } from '../components/DialogComponents';
 
 export const AdminPage: React.FC = () => {
   const { appUser, isAdmin } = useAuth();
@@ -35,6 +36,8 @@ export const AdminPage: React.FC = () => {
     status: 'approved',
   });
   const [resetSent, setResetSent] = useState(false);
+  const { confirm, ConfirmDialogNode } = useConfirm();
+  const { toast, ToastNode } = useToast();
 
   const [form, setForm] = useState({
     name: '',
@@ -62,9 +65,11 @@ export const AdminPage: React.FC = () => {
   };
 
   const handleReject = async (uid: string, userName: string) => {
-    if (confirm('Reject and remove this user access request?')) {
+    const ok = await confirm({ title: 'Reject Access Request', message: `Reject and remove ${userName}'s access request? They will be unable to log in.`, confirmLabel: 'Reject', cancelLabel: 'Keep', variant: 'warning' });
+    if (ok) {
       await rejectUser(uid, appUser?.name || 'Admin', userName);
       setPendingUsers(prev => prev.filter(u => u.uid !== uid));
+      toast(`${userName}'s request was rejected.`, 'info');
     }
   };
 
@@ -91,10 +96,12 @@ export const AdminPage: React.FC = () => {
   };
 
   const handleDeleteUser = async (user: AppUser) => {
-    if (confirm(`Are you sure you want to remove ${user.name} (${user.email})? This action cannot be undone.`)) {
+    const ok = await confirm({ title: 'Remove Member', message: `Are you sure you want to permanently remove ${user.name} (${user.email})? This action cannot be undone.`, confirmLabel: 'Remove', variant: 'danger' });
+    if (ok) {
       await deleteUserAccount(user.uid);
       setAllUsers(prev => prev.filter(u => u.uid !== user.uid));
       setPendingUsers(prev => prev.filter(u => u.uid !== user.uid));
+      toast(`${user.name} has been removed.`, 'success');
     }
   };
 
@@ -102,8 +109,9 @@ export const AdminPage: React.FC = () => {
     try {
       await sendAdminPasswordReset(email);
       setResetSent(true);
+      toast('Password reset email sent!', 'success');
     } catch (err: any) {
-      alert('Error sending password reset: ' + err.message);
+      toast('Error sending password reset: ' + err.message, 'error');
     }
   };
 
@@ -145,32 +153,161 @@ export const AdminPage: React.FC = () => {
   };
 
   const handleDeleteProject = async (id: string) => {
-    if (confirm('Delete this project? This cannot be undone.')) {
+    const ok = await confirm({ title: 'Delete Project', message: 'Delete this project and all its data? This cannot be undone.', confirmLabel: 'Delete Project', variant: 'danger' });
+    if (ok) {
       await deleteProject(id);
+      toast('Project deleted.', 'success');
     }
   };
 
   const adminUsers = allUsers.filter(u => MAIN_CS_POSITIONS.includes(u.position as any));
 
+  const SIDEBAR_W = 240;
+
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '24px 16px' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px', paddingBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.08)', flexWrap: 'wrap', gap: '12px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <img src="/cs-logo-full.png" alt="IEEE CS" style={{ height: '46px', objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
+    <>
+      {/* ══════════════════════════════════════════════
+          FIXED LEFT SIDEBAR (Muxx-style Layout)
+      ══════════════════════════════════════════════ */}
+      <div style={{
+        position: 'fixed',
+        top: 0, left: 0, bottom: 0,
+        width: `${SIDEBAR_W}px`,
+        zIndex: 200,
+        background: '#090d16',
+        borderRight: '1px solid rgba(255, 255, 255, 0.07)',
+        boxShadow: '4px 0 30px rgba(0, 0, 0, 0.5)',
+        display: 'flex',
+        flexDirection: 'column',
+        padding: '24px 16px',
+      }}>
+        {/* Brand Header */}
+        <div style={{ marginBottom: '28px', paddingLeft: '4px' }}>
+          <img
+            src="/cs-logo-sidebar.png"
+            alt="IEEE CS SLTC"
+            style={{ height: '54px', objectFit: 'contain', marginBottom: '10px', display: 'block' }}
+          />
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: '6px',
+            padding: '4px 12px', borderRadius: '20px',
+            background: 'linear-gradient(135deg, rgba(247,148,29,0.25), rgba(247,148,29,0.08))',
+            border: '1px solid rgba(247,148,29,0.5)',
+            fontSize: '0.65rem', fontWeight: 800, color: '#F7941D',
+            textTransform: 'uppercase', letterSpacing: '1px',
+          }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#F7941D', boxShadow: '0 0 6px #F7941D' }} />
+            ADMIN PORTAL
+          </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            {appUser?.name} — <strong style={{ color: '#fbbf24' }}>{appUser?.position}</strong>
-          </span>
-          <button className="btn btn-outline" onClick={() => window.location.href = '/'} style={{ padding: '6px 12px', fontSize: '0.85rem' }}>
-            <FolderOpen size={15} /> Dashboard
+
+        {/* Section Label */}
+        <div style={{ fontSize: '0.68rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px', paddingLeft: '8px' }}>
+          NAVIGATION
+        </div>
+
+        {/* Navigation Actions Stack */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <button
+            className="btn"
+            onClick={() => window.location.href = '/'}
+            style={{
+              width: '100%', height: '44px', justifyContent: 'flex-start', padding: '0 14px', gap: '10px',
+              fontSize: '0.85rem', borderRadius: '12px', fontWeight: 700,
+              background: 'linear-gradient(135deg, rgba(0, 98, 155, 0.5), rgba(0, 98, 155, 0.2))',
+              border: '1px solid rgba(0, 98, 155, 0.6)',
+              color: '#e0f0ff', boxShadow: '0 4px 14px rgba(0,98,155,0.25)',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            🏠 Dashboard Home
           </button>
-          <button className="btn btn-outline" onClick={logoutUser} style={{ padding: '6px 12px', fontSize: '0.85rem', color: '#f87171' }}>
-            <LogOut size={15} /> Sign Out
+
+          <button
+            className="btn"
+            onClick={() => { setActiveTab('projects'); setShowNewProject(true); }}
+            style={{
+              width: '100%', height: '44px', justifyContent: 'flex-start', padding: '0 14px', gap: '10px',
+              fontSize: '0.85rem', borderRadius: '12px', fontWeight: 700,
+              background: 'linear-gradient(135deg, rgba(6,182,212,0.5), rgba(2,132,199,0.3))',
+              border: '1px solid rgba(6,182,212,0.6)',
+              color: '#e0fbff', boxShadow: '0 4px 14px rgba(6,182,212,0.25)',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            <Plus size={17} style={{ color: '#22d3ee' }} /> New Project
           </button>
+        </div>
+
+        {/* Spacer */}
+        <div style={{ flex: 1 }} />
+
+        {/* User Card */}
+        <div style={{
+          background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+          borderRadius: '12px', padding: '12px', marginBottom: '14px',
+          display: 'flex', alignItems: 'center', gap: '10px',
+        }}>
+          <div style={{
+            width: '34px', height: '34px', borderRadius: '50%',
+            background: 'linear-gradient(135deg, #d97706, #fbbf24)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '0.85rem', fontWeight: 800, color: '#000', flexShrink: 0,
+          }}>
+            <Shield size={16} />
+          </div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f3f4f6', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{appUser?.name}</div>
+            <div style={{ fontSize: '0.68rem', color: '#fbbf24', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{appUser?.position}</div>
+          </div>
+        </div>
+
+        {/* Logout Button Fixed at Bottom */}
+        <button
+          className="btn btn-outline"
+          onClick={logoutUser}
+          title="Sign Out"
+          style={{
+            width: '100%', height: '40px', justifyContent: 'flex-start', padding: '0 14px',
+            borderRadius: '10px', color: '#f87171', fontSize: '0.85rem', fontWeight: 600,
+            borderColor: 'rgba(248,113,113,0.25)', background: 'rgba(248,113,113,0.05)',
+          }}
+        >
+          <LogOut size={16} /> Sign Out
+        </button>
+
+        <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)', marginTop: '12px', textAlign: 'center' }}>
+          © 2026 IEEE CS SLTC
         </div>
       </div>
+
+      {/* ══════════════════════════════════════════════
+          FIXED TOP BAR (Admin Title)
+      ══════════════════════════════════════════════ */}
+      <div style={{
+        position: 'fixed',
+        top: 0, left: `${SIDEBAR_W}px`, right: 0,
+        zIndex: 180,
+        height: '60px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '0 24px',
+        background: 'rgba(9, 13, 22, 0.85)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.07)',
+      }}>
+        <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#fbbf24', letterSpacing: '0.3px' }}>
+          Webmaster Admin Console
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════
+          MAIN CONTENT AREA
+      ══════════════════════════════════════════════ */}
+      <div style={{ marginLeft: `${SIDEBAR_W}px`, padding: '80px 24px 32px' }}>
+
 
       {/* Admin Badge */}
       <div className="glass-panel" style={{ padding: '16px 20px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(255,163,0,0.06)', borderColor: 'rgba(255,163,0,0.2)' }}>
@@ -599,6 +736,9 @@ export const AdminPage: React.FC = () => {
           )}
         </div>
       )}
-    </div>
+      </div>
+      {ConfirmDialogNode}
+      {ToastNode}
+    </>
   );
 };

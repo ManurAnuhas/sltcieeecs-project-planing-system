@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { signUpUser, isAllowedEmail } from '../services/firebaseService';
+import { signUpUser, isAllowedEmail, getTakenMainPositions } from '../services/firebaseService';
 import { MAIN_CS_POSITIONS } from '../types';
 import type { UserRole } from '../types';
 import { Eye, EyeOff, UserPlus } from 'lucide-react';
@@ -11,7 +11,16 @@ export const SignupPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [confirmPwd, setConfirmPwd] = useState('');
   const [position, setPosition] = useState<UserRole>('Chairman');
-  const [requestedProjectName, setRequestedProjectName] = useState('');
+  const [takenPositions, setTakenPositions] = useState<string[]>([]);
+
+  // Load already‑registered main committee positions
+  useEffect(() => {
+    const fetchTaken = async () => {
+      const taken = await getTakenMainPositions();
+      setTakenPositions(taken);
+    };
+    fetchTaken();
+  }, []);
   const [showPwd, setShowPwd] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -19,11 +28,14 @@ export const SignupPage: React.FC = () => {
 
   const isProjectRole = position === 'Project-Chairperson' || position === 'Project-Co-Chairperson';
 
+  // Build the dropdown list – filter out any main‑committee role that is already taken
+  const availableMain = MAIN_CS_POSITIONS.filter(pos => !takenPositions.includes(pos));
   const ALL_POSITIONS: UserRole[] = [
-    ...MAIN_CS_POSITIONS,
+    ...availableMain,
     'Project-Chairperson',
     'Project-Co-Chairperson',
     'Other',
+    'Member',
   ];
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -77,8 +89,8 @@ export const SignupPage: React.FC = () => {
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
           <img
             src="/cs-logo-full.png"
-            alt="IEEE Computer Society - SLTC"
-            style={{ height: '56px', objectFit: 'contain', filter: 'brightness(0) invert(1)', margin: '0 auto' }}
+            alt="1PHI SLTC"
+            style={{ height: '56px', objectFit: 'contain', margin: '0 auto' }}
           />
           <p style={{ marginTop: '10px', color: 'var(--text-muted)', fontSize: '0.88rem' }}>
             Create your committee account

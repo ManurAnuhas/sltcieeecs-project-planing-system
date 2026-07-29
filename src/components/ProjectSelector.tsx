@@ -100,9 +100,9 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
           </div>
         </div>
 
-        {/* Center: Team Leadership Badge */}
+        {/* Center: Team Leadership Badge — desktop only */}
         {currentProj && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(255,255,255,0.03)', padding: '8px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <div className="desktop-only" style={{ alignItems: 'center', gap: '12px', background: 'rgba(255,255,255,0.03)', padding: '8px 16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
             <div style={{ fontSize: '0.8rem' }}>
               <span style={{ color: 'var(--text-muted)' }}>Chairperson:</span> <strong>{currentProj.chairpersonName}</strong>
               <div style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)', marginTop: '2px' }}>
@@ -113,15 +113,15 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
         )}
 
         {/* Right Side: Create New Project Button & Share Link */}
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           <button className="btn btn-outline" onClick={handleCopyShareLink} title="Share View Access Link with Members">
             {copiedShare ? <Check size={16} color="#34d399" /> : <Copy size={16} />}
-            {copiedShare ? 'Copied View Link!' : 'Share Member View Link'}
+            {copiedShare ? 'Copied!' : 'Share Link'}
           </button>
 
           {canEdit && (
             <button className="btn btn-gold" onClick={() => setIsModalOpen(true)}>
-              <Plus size={16} /> New Clean Project
+              <Plus size={16} /> New Project
             </button>
           )}
         </div>

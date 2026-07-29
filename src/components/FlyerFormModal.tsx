@@ -29,6 +29,7 @@ export const FlyerFormModal: React.FC<FlyerFormModalProps> = ({ item, projectId,
       notes: ''
     }
   );
+  const [titleError, setTitleError] = useState(false);
 
   const availablePlatforms = ['Facebook', 'Instagram', 'LinkedIn', 'WhatsApp Group', 'WhatsApp Status'];
 
@@ -44,9 +45,10 @@ export const FlyerFormModal: React.FC<FlyerFormModalProps> = ({ item, projectId,
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title) {
-      alert('Please fill in the Asset Title');
+      setTitleError(true);
       return;
     }
+    setTitleError(false);
 
     const newItem: AssetPlanItem = {
       id: formData.id || `asset-${Date.now()}`,
@@ -110,9 +112,13 @@ export const FlyerFormModal: React.FC<FlyerFormModalProps> = ({ item, projectId,
                 type="text"
                 placeholder="e.g. Speaker Reveal Video / Teaser Flyer"
                 value={formData.title}
-                onChange={e => setFormData({ ...formData, title: e.target.value })}
+                onChange={e => { setFormData({ ...formData, title: e.target.value }); if (e.target.value) setTitleError(false); }}
                 required
+                style={titleError ? { borderColor: '#f87171', boxShadow: '0 0 0 2px rgba(248,113,113,0.2)' } : {}}
               />
+              {titleError && (
+                <p style={{ fontSize: '0.78rem', color: '#f87171', marginTop: '4px' }}>⚠ Asset Title is required.</p>
+              )}
             </div>
           </div>
 

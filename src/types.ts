@@ -9,7 +9,8 @@ export type UserRole =
   | 'Assistant Webmaster'
   | 'Project-Chairperson'    // Needs admin approval
   | 'Project-Co-Chairperson' // Needs admin approval
-  | 'Other';
+  | 'Other'
+  | 'Member';                // View-only role — no approval needed
 
 export type UserStatus = 'pending' | 'approved' | 'rejected';
 
@@ -36,6 +37,12 @@ export const NEEDS_APPROVAL = (role?: string): boolean => {
   if (!role) return false;
   const norm = role.toLowerCase().replace(/[^a-z0-9]/g, '');
   return norm === 'projectchairperson' || norm === 'projectcochairperson';
+};
+
+// Member role is view-only — cannot edit/upload anything
+export const IS_MEMBER_ROLE = (role?: string): boolean => {
+  if (!role) return false;
+  return role === 'Member';
 };
 
 export interface AppUser {
@@ -121,3 +128,16 @@ export interface ProjectWorkspace {
 }
 
 export type FilterStatus = 'All' | 'Draft' | 'In Design' | 'Under Review' | 'Scheduled' | 'Published' | 'Delayed';
+
+export type LogoCategory = 'SLTC Campus' | 'IEEE Branch' | 'IEEE CS' | 'Sponsor' | 'Project Asset' | 'Other';
+
+export interface LogoItem {
+  id: string;
+  title: string;
+  category: LogoCategory;
+  url: string;
+  format?: string;
+  projectId?: string; // If null/undefined, it is a global common logo
+  uploadedBy?: string;
+  createdAt: string;
+}
