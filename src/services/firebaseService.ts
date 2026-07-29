@@ -75,6 +75,18 @@ export const getTakenMainPositions = async (): Promise<string[]> => {
   return taken;
 };
 
+// Real‑time listener for taken main‑committee positions (updates when new users sign up)
+export const subscribeTakenMainPositions = (callback: (positions: string[]) => void) => {
+  return onSnapshot(collection(db, 'users'), snap => {
+    const taken: string[] = [];
+    snap.forEach(d => {
+      const data = d.data();
+      if (data.position) taken.push(data.position as string);
+    });
+    callback(taken);
+  });
+};
+
 export const loginUser = (email: string, password: string) =>
   signInWithEmailAndPassword(auth, email, password);
 

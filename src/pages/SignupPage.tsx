@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { signUpUser, isAllowedEmail, getTakenMainPositions } from '../services/firebaseService';
+import { signUpUser, isAllowedEmail, getTakenMainPositions, subscribeTakenMainPositions } from '../services/firebaseService';
 import { MAIN_CS_POSITIONS } from '../types';
 import type { UserRole } from '../types';
 import { Eye, EyeOff, UserPlus } from 'lucide-react';
@@ -13,13 +13,10 @@ export const SignupPage: React.FC = () => {
   const [position, setPosition] = useState<UserRole>('Chairman');
   const [takenPositions, setTakenPositions] = useState<string[]>([]);
 
-  // Load already‑registered main committee positions
+  // Real‑time subscription for taken main‑committee positions
   useEffect(() => {
-    const fetchTaken = async () => {
-      const taken = await getTakenMainPositions();
-      setTakenPositions(taken);
-    };
-    fetchTaken();
+    const unsubscribe = subscribeTakenMainPositions(setTakenPositions);
+    return () => unsubscribe();
   }, []);
   const [showPwd, setShowPwd] = useState(false);
   const [error, setError] = useState('');
