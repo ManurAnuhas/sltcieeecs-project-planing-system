@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { loginUser, signInWithGoogle, createGoogleUserProfile, logoutUser } from '../services/firebaseService';
+import { loginUser, signInWithGoogle, createGoogleUserProfile, logoutUser, subscribeTakenMainPositions } from '../services/firebaseService';
 import { MAIN_CS_POSITIONS } from '../types';
 import type { UserRole } from '../types';
 import { Eye, EyeOff, LogIn } from 'lucide-react';
@@ -11,12 +11,38 @@ export const LoginPage: React.FC = () => {
   const [showPwd, setShowPwd] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [takenPositions, setTakenPositions] = useState<string[]>([]);
   
   // Google sign up profile completion dialog
   const [googleUser, setGoogleUser] = useState<{ uid: string; email: string; name: string } | null>(null);
   const [googleRole, setGoogleRole] = useState<UserRole>('Chairman');
   
   const navigate = useNavigate();
+
+  // Subscribe to taken positions
+  React.useEffect(() => {
+    const unsubscribe = subscribeTakenMainPositions(setTakenPositions);
+    return () => unsubscribe();
+  }, []);
+
+  const norm = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const availableMain = MAIN_CS_POSITIONS.filter(
+    pos => !takenPositions.some(taken => norm(taken) === norm(pos))
+  );
+  const GOOGLE_POSITIONS: UserRole[] = [
+    ...availableMain,
+    'Project-Chairperson',
+    'Project-Co-Chairperson',
+    'Other',
+    'Member',
+  ];
+
+  // Update selected googleRole if taken
+  React.useEffect(() => {
+    if (GOOGLE_POSITIONS.length > 0 && !GOOGLE_POSITIONS.includes(googleRole)) {
+      setGoogleRole(GOOGLE_POSITIONS[0]);
+    }
+  }, [takenPositions, googleUser]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -224,12 +250,9 @@ export const LoginPage: React.FC = () => {
                   required
                   style={{ width: '100%', padding: '10px', background: '#111827', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', borderRadius: '8px' }}
                 >
-                  {MAIN_CS_POSITIONS.map(pos => (
+                  {GOOGLE_POSITIONS.map(pos => (
                     <option key={pos} value={pos}>{pos}</option>
                   ))}
-                  <option value="Project-Chairperson">Project-Chairperson</option>
-                  <option value="Project-Co-Chairperson">Project-Co-Chairperson</option>
-                  <option value="Other">Other</option>
                 </select>
                 {MAIN_CS_POSITIONS.includes(googleRole) && (
                   <p style={{ fontSize: '0.75rem', color: '#34d399', marginTop: '6px' }}>
