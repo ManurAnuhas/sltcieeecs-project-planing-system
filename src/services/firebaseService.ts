@@ -81,7 +81,9 @@ export const subscribeTakenMainPositions = (callback: (positions: string[]) => v
     const taken: string[] = [];
     snap.forEach(d => {
       const data = d.data();
-      if (data.position) taken.push(data.position as string);
+      if (data.position && data.status !== 'rejected') {
+        taken.push(data.position as string);
+      }
     });
     callback(taken);
   });

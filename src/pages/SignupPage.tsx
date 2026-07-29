@@ -25,8 +25,12 @@ export const SignupPage: React.FC = () => {
 
   const isProjectRole = position === 'Project-Chairperson' || position === 'Project-Co-Chairperson';
 
+  const norm = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, '');
+
   // Build the dropdown list – filter out any main‑committee role that is already taken
-  const availableMain = MAIN_CS_POSITIONS.filter(pos => !takenPositions.includes(pos));
+  const availableMain = MAIN_CS_POSITIONS.filter(
+    pos => !takenPositions.some(taken => norm(taken) === norm(pos))
+  );
   const ALL_POSITIONS: UserRole[] = [
     ...availableMain,
     'Project-Chairperson',
@@ -34,6 +38,13 @@ export const SignupPage: React.FC = () => {
     'Other',
     'Member',
   ];
+
+  // Keep selected position valid when taken positions update
+  useEffect(() => {
+    if (ALL_POSITIONS.length > 0 && !ALL_POSITIONS.includes(position)) {
+      setPosition(ALL_POSITIONS[0]);
+    }
+  }, [takenPositions]);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
